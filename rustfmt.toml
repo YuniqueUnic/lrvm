@@ -1,0 +1,79 @@
+# rustfmt.toml
+edition = "2021" # Rust 版本，可以设置为 "2015" 或 "2018"
+
+# 控制是否在保存文件时自动格式化代码
+# 这通常在编辑器配置中设置，而不是在 rustfmt.toml 中
+# make_backup = false
+
+# 代码宽度限制
+max_width = 100
+
+# 是否在匹配的括号两边插入空格
+match_arm_blocks = true
+match_arm_brace_style = "AlwaysNextLine" # 匹配分支的大括号风格
+match_block_trailing_comma = true        # 匹配块尾部的逗号
+
+# 是否在大括号内插入空格
+brace_style = "SameLineWhere" # 大括号风格
+
+# 控制逗号分隔列表的格式
+# comma_style = "Trailing" # 逗号风格
+# trailing_comma = "Never" # 尾随逗号
+
+# 控制是否将注释附加到代码行
+comment_width = 80
+
+# 控制函数参数的布局
+fn_args_density = "Tall" # 函数参数密度
+fn_arg_indent = "Block"  # 函数参数缩进
+
+# 控制是否对字段进行换行
+field_alignment = false
+
+# 控制缩进风格
+indent_style = "Block" # 缩进风格
+indent_size = 4        # 缩进大小
+
+# 控制是否在二元操作符两边插入空格
+binop_separator = "Front" # 二元操作符分隔符
+
+# 控制是否对模块使用缩进
+module_indent = "Block"
+
+# 控制是否在链式方法调用时换行
+chain_width = 60
+
+# 控制是否对属性进行换行
+attr_indent_style = "Block"
+
+# 控制是否在 where 子句中换行
+where_style = "Rfc"
+
+version = "Two" # 使用 rustfmt 的哪个版本进行格式化
+
+# 控制是否在字符串字面量中使用引号
+quote_style = "Auto" # 引号风格
+
+# 控制是否对宏调用进行换行
+macro_brace_style = "SameLine" # 宏大括号风格
+
+# 控制是否在 let 语句中对变量赋值进行换行
+let_indent = "Block"
+
+# 控制是否在结构体字面量中换行
+struct_lit_style = "Block"
+
+# 控制是否在元组字面量中换行
+tuple_element_indent = "Block"
+
+# 控制是否在闭包参数中换行
+closure_indent_style = "Block"
+
+# 控制是否在 lifetimes 前后插入空格
+lifetime_indent = true
+
+# 控制是否在 impl 块中对方法进行换行
+implTraitArgumentIndent = "Block"
+
+# 控制是否在 trait 块中对方法进行换行
+trait_associated_itemIndent = "Block"
