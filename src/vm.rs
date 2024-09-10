@@ -1,10 +1,16 @@
 use crate::instruction::Opcode;
 
 pub struct VM {
+    // Simulate hard registers
     registers: [i32; 32], // Why we use array instead of vector? Because we know the size of registers at the start.
-    pc: usize,            // program counter, 8 bits
-    program: Vec<u8>,     // program memory, 8 bits
+    // tracking the program counter
+    pc: usize, // program counter, 8 bits
+    // Running program bytes
+    program: Vec<u8>, // program memory, 8 bits
+    // The reminder of division operation
     reminder: u32,
+    // the last compare result
+    equal_flag: bool,
 }
 
 impl VM {
@@ -14,6 +20,7 @@ impl VM {
             program: vec![],
             pc: 0,
             reminder: 0,
+            equal_flag: false,
         }
     }
 
@@ -71,6 +78,21 @@ impl VM {
                 self.pc -= value as usize;
                 false
             },
+            Opcode::EQ => {
+                let register1 = self.registers[self.next_8_bits() as usize];
+                let register2 = self.registers[self.next_8_bits() as usize];
+                self.equal_flag = register1 == register2;
+                self.next_8_bits(); //eat the next 8 bits
+                false
+            },
+            Opcode::JMPE => {
+                let register = self.next_8_bits() as usize;
+                let target = self.registers[register];
+                if self.equal_flag {
+                    self.pc = target as usize;
+                }
+                false
+            },
             Opcode::HLT => {
                 println!("Hit the HLT");
                 true
@@ -79,11 +101,13 @@ impl VM {
                 eprintln!("Illegal instruction encountered");
                 true
             },
+            _ => false,
         }
     }
 
     pub fn get_test_vm() -> VM {
         let mut test_vm = VM::new();
+        test_vm.equal_flag = false;
         // test_vm.registers[0] = 5;
         // test_vm.registers[1] = 10;
         test_vm
@@ -171,9 +195,35 @@ mod tests {
         let mut test_vm = VM::get_test_vm();
         test_vm.registers[1] = 6;
         test_vm.program = vec![0, 0, 0, 10, 8, 1, 0, 0, 0];
+        test_vm.run_once(); // currently, the LOAD opcode has taken [0,0,0,10] => load 0 << 8 + 10 at the registers[0]
+        assert_eq!(test_vm.pc, 4); // so the pc locate at the index 4 which is number 8;
+        test_vm.run_once(); // start to decode the 8 to JMPB and then read the registers[1] = 6
+        assert_eq!(test_vm.pc, 0); // due to current pc index is 6 so that it subtracts 6 = 0;
+    }
+
+    #[test]
+    fn test_eq_opcode() {
+        let mut test_vm = VM::get_test_vm();
+        test_vm.registers[0] = 6;
+        test_vm.registers[1] = 6;
+        test_vm.program = vec![9, 0, 1, 10, 9, 1, 0, 0, 0];
         test_vm.run_once();
+        assert_eq!(test_vm.equal_flag, true);
         assert_eq!(test_vm.pc, 4);
+        test_vm.registers[0] = 0;
         test_vm.run_once();
-        assert_eq!(test_vm.pc, 0);
+        assert_eq!(test_vm.equal_flag, false);
+        assert_eq!(test_vm.pc, 8);
+    }
+
+    #[test]
+    fn test_jmpe_opcode() {
+        let mut test_vm = VM::get_test_vm();
+        test_vm.equal_flag = true;
+        test_vm.registers[0] = 7;
+        test_vm.program = vec![15, 0, 0, 0, 17, 0, 0, 0, 17, 0, 0, 0];
+        test_vm.run_once();
+        assert_eq!(test_vm.equal_flag, true);
+        assert_eq!(test_vm.pc, 7);
     }
 }
