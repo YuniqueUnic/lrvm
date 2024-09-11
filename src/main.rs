@@ -3,7 +3,6 @@ pub mod instruction;
 pub mod repl;
 pub mod vm;
 
-#[macro_use]
 extern crate nom;
 
 fn main() {

@@ -1,5 +1,3 @@
-use std::clone;
-
 use nom::{
     branch::alt,
     character::complete::{line_ending, multispace0},
