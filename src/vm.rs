@@ -2,11 +2,11 @@ use crate::instruction::Opcode;
 
 pub struct VM {
     // Simulate hard registers
-    registers: [i32; 32], // Why we use array instead of vector? Because we know the size of registers at the start.
+    pub registers: [i32; 32], // Why we use array instead of vector? Because we know the size of registers at the start.
     // tracking the program counter
     pc: usize, // program counter, 8 bits
     // Running program bytes
-    program: Vec<u8>, // program memory, 8 bits
+    pub program: Vec<u8>, // program memory, 8 bits
     // The reminder of division operation
     reminder: u32,
     // the last compare result
@@ -33,6 +33,22 @@ impl VM {
 
     pub fn run_once(&mut self) {
         self.execute_instruction();
+    }
+
+    pub fn get_test_vm() -> VM {
+        let mut test_vm = VM::new();
+        test_vm.equal_flag = false;
+        // test_vm.registers[0] = 5;
+        // test_vm.registers[1] = 10;
+        test_vm
+    }
+
+    pub fn add_byte(&mut self, byte: u8) {
+        self.program.push(byte);
+    }
+
+    pub fn add_bytes(&mut self, mut bytes: Vec<u8>) {
+        self.program.append(&mut bytes);
     }
 
     fn execute_instruction(&mut self) -> bool {
@@ -151,14 +167,6 @@ impl VM {
             },
             _ => false,
         }
-    }
-
-    pub fn get_test_vm() -> VM {
-        let mut test_vm = VM::new();
-        test_vm.equal_flag = false;
-        // test_vm.registers[0] = 5;
-        // test_vm.registers[1] = 10;
-        test_vm
     }
 
     fn decode_opcode(&mut self) -> Opcode {
