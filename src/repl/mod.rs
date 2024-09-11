@@ -82,6 +82,7 @@ impl REPL {
         }
     }
 
+    #[allow(dead_code)]
     fn parse_hex(&mut self, i: &str) -> Result<Vec<u8>, ParseIntError> {
         let split: Vec<&str> = i.split(" ").collect::<Vec<&str>>();
 
