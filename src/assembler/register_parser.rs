@@ -4,6 +4,7 @@ use nom::{
     bytes::complete::tag,
     character::complete::{digit1, multispace0},
     combinator::map_res,
+    error::context,
     sequence::preceded,
     IResult,
 };
@@ -19,19 +20,22 @@ use nom::{
 /// # Returns
 /// * `IResult<&str, Token>` - The parsing result, either a Token with the parsed register number
 ///   or an error.
-fn register(input: &str) -> IResult<&str, Token> {
-    // Skip any leading spaces
-    preceded(
-        multispace0, // skip spaces first
-        // Skip the '$' and read at least one digit
-        map_res(
-            preceded(tag("$"), digit1), // skip the $ first
-            |reg_num: &str| {
-                // Convert the string representation of the register number to an unsigned 8-bit integer
-                Ok::<Token, &str>(Token::Register {
-                    reg_num: reg_num.parse::<u8>().unwrap(),
-                })
-            },
+pub fn register(input: &str) -> IResult<&str, Token> {
+    context(
+        "register",
+        // Skip any leading spaces
+        preceded(
+            multispace0, // skip spaces first
+            // Skip the '$' and read at least one digit
+            map_res(
+                preceded(tag("$"), digit1), // skip the $ first
+                |reg_num: &str| {
+                    // Convert the string representation of the register number to an unsigned 8-bit integer
+                    Ok::<Token, &str>(Token::Register {
+                        reg_num: reg_num.parse::<u8>().unwrap(),
+                    })
+                },
+            ),
         ),
     )(input)
 }

@@ -1,5 +1,5 @@
 /// Represents an opcode, which tells our interpreter what to do with the following operands
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Opcode {
     LOAD,    // 0
     ADD,     // 1

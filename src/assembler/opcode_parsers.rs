@@ -4,6 +4,7 @@ use nom::{
     branch::alt,
     character::complete::{alpha1, digit1},
     combinator::map_res,
+    error::context,
     IResult,
 };
 
@@ -17,12 +18,32 @@ fn opcode_from_str(input: &str) -> Opcode {
 }
 
 /// 解析 opcode 字符串
+///
+/// # 参数
+/// * `input` - 待解析的 opcode 字符串切片
+///
+/// # 返回值
+/// 返回一个`IResult<&str, Token>`，其中`Token`是解析后的 opcode 封装在`Token::Op`变体中
+///
+/// # 描述
+/// 该函数使用`context`组合器设置错误上下文为"opcode_load"，并尝试使用`alt`组合器的备选方案解析输入字符串
+/// 如果输入字符串以数字或字母开头，则使用`map_res`组合器映射结果为`Token::Op`变体，其中`code`字段是通过调用`opcode_from_str`
+/// 函数从字符串转换得到的
+///
+/// # 例子
+/// ```
+/// let result = opcode_load("add");
+/// assert_eq!(result, Ok((0, Token::Op { code: Some(OpCode::Add) })));
+/// ```
 pub fn opcode_load(input: &str) -> IResult<&str, Token> {
-    map_res(alt((digit1, alpha1)), |s: &str| {
-        Ok::<Token, &str>(Token::Op {
-            code: opcode_from_str(s),
-        })
-    })(input)
+    context(
+        "opcode_load",
+        map_res(alpha1, |s: &str| {
+            Ok::<Token, &str>(Token::Op {
+                code: opcode_from_str(s),
+            })
+        }),
+    )(input)
 }
 
 // 测试用例
@@ -52,9 +73,7 @@ mod tests {
     #[test]
     fn test_opcode_customize() {
         let result = opcode_load("load$1#2");
-        println!("result: {:?}", result);
         assert_eq!(result.is_ok(), true);
-        let (rest, token) = result.unwrap();
-        println!("rest: {:?}, token: {:?}", rest, token);
+        let (_rest, _token) = result.unwrap();
     }
 }
