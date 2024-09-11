@@ -1,4 +1,3 @@
-use crate::instruction;
 use crate::vm::VM;
 
 use std;
