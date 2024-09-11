@@ -108,6 +108,63 @@ impl From<u8> for Opcode {
     }
 }
 
+impl From<&str> for Opcode {
+    fn from(value: &str) -> Self {
+        match value {
+            "load" => Opcode::LOAD,
+            "add" => Opcode::ADD,
+            "sub" => Opcode::SUB,
+            "mul" => Opcode::MUL,
+            "div" => Opcode::DIV,
+            "hlt" => Opcode::HLT,
+            "jmp" => Opcode::JMP,
+            "jmpf" => Opcode::JMPF,
+            "jmpb" => Opcode::JMPB,
+            "eq" => Opcode::EQ,
+            "neq" => Opcode::NEQ,
+            "gte" => Opcode::GTE,
+            "lte" => Opcode::LTE,
+            "lt" => Opcode::LT,
+            "gt" => Opcode::GT,
+            "jmpe" => Opcode::JMPE,
+            "nop" => Opcode::NOP,
+            "aloc" => Opcode::ALOC,
+            "inc" => Opcode::INC,
+            "dec" => Opcode::DEC,
+            "djmpe" => Opcode::DJMPE,
+            "igl" => Opcode::IGL,
+            "prts" => Opcode::PRTS,
+            "loadf64" => Opcode::LOADF64,
+            "addf64" => Opcode::ADDF64,
+            "subf64" => Opcode::SUBF64,
+            "mulf64" => Opcode::MULF64,
+            "divf64" => Opcode::DIVF64,
+            "eqf64" => Opcode::EQF64,
+            "neqf64" => Opcode::NEQF64,
+            "gtf64" => Opcode::GTF64,
+            "gtef64" => Opcode::GTEF64,
+            "ltf64" => Opcode::LTF64,
+            "ltef64" => Opcode::LTEF64,
+            "shl" => Opcode::SHL,
+            "shr" => Opcode::SHR,
+            "and" => Opcode::AND,
+            "or" => Opcode::OR,
+            "xor" => Opcode::XOR,
+            "not" => Opcode::NOT,
+            "lui" => Opcode::LUI,
+            "cloop" => Opcode::CLOOP,
+            "loop" => Opcode::LOOP,
+            "loadm" => Opcode::LOADM,
+            "setm" => Opcode::SETM,
+            "push" => Opcode::PUSH,
+            "pop" => Opcode::POP,
+            "call" => Opcode::CALL,
+            "ret" => Opcode::RET,
+            _ => Opcode::IGL,
+        }
+    }
+}
+
 #[allow(dead_code)]
 pub struct Instruction {
     opcode: Opcode,

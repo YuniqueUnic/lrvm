@@ -1,21 +1,6 @@
 use crate::assembler::Token;
 use crate::instruction::Opcode;
-use nom::{
-    branch::alt,
-    character::complete::{alpha1, digit1},
-    combinator::map_res,
-    error::context,
-    IResult,
-};
-
-/// 将 &str 转换为 Opcode 枚举
-fn opcode_from_str(input: &str) -> Opcode {
-    match input {
-        "load" => Opcode::LOAD,
-        // 添加其他的 opcode 映射
-        _ => Opcode::IGL, // 默认无效指令
-    }
-}
+use nom::{character::complete::alpha1, combinator::map_res, error::context, IResult};
 
 /// 解析 opcode 字符串
 ///
@@ -40,7 +25,7 @@ pub fn opcode_load(input: &str) -> IResult<&str, Token> {
         "opcode_load",
         map_res(alpha1, |s: &str| {
             Ok::<Token, &str>(Token::Op {
-                code: opcode_from_str(s),
+                code: Opcode::from(s.to_lowercase().as_str()),
             })
         }),
     )(input)
@@ -58,6 +43,13 @@ mod tests {
     fn test_opcode() {
         // First tests that the opcode is detected and parsed correctly
         let result = opcode_load("load");
+        assert_eq!(result.is_ok(), true);
+        let (rest, token) = result.unwrap();
+        assert_eq!(token, Token::Op { code: Opcode::LOAD });
+        assert_eq!(rest, ""); // 剩余字符串
+
+        // First tests that the opcode is detected and parsed correctly
+        let result = opcode_load("LoAd");
         assert_eq!(result.is_ok(), true);
         let (rest, token) = result.unwrap();
         assert_eq!(token, Token::Op { code: Opcode::LOAD });

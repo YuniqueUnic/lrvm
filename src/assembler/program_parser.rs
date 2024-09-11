@@ -6,6 +6,16 @@ pub struct Program {
     instructions: Vec<AssemblerInstruction>,
 }
 
+impl Program {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut program_bytes = vec![];
+        for instruction in &self.instructions {
+            program_bytes.append(&mut instruction.to_bytes());
+        }
+        program_bytes
+    }
+}
+
 /// 解析程序的主函数
 ///
 /// # 参数
@@ -47,5 +57,22 @@ mod tests {
         let (leftover, p) = result.unwrap();
         assert_eq!(leftover, "");
         assert_eq!(1, p.instructions.len());
+    }
+
+    #[test]
+    fn test_program_to_bytes() {
+        let result = program("load $0 #100\n");
+        assert_eq!(result.is_ok(), true);
+        let (_, program_res) = result.unwrap();
+        let bytecode = program_res.to_bytes();
+        assert_eq!(bytecode.len(), 4);
+        println!("load $0 #100  ==To_Bytes==> {:?}", bytecode);
+
+        let result = program("load $0 #1000  \n   ");
+        assert_eq!(result.is_ok(), true);
+        let (_, program_res) = result.unwrap();
+        let bytecode = program_res.to_bytes();
+        assert_eq!(bytecode.len(), 4);
+        println!("load $0 #1000 ==To_Bytes==> {:?}", bytecode);
     }
 }

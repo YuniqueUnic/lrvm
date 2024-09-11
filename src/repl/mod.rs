@@ -1,3 +1,4 @@
+use crate::assembler::program_parser::program;
 use crate::vm::VM;
 
 use std;
@@ -61,17 +62,20 @@ impl REPL {
                     println!("End of registers Listing");
                 },
                 _ => {
-                    let results = self.parse_hex(buffer);
-                    match results {
-                        Ok(bytes) => {
-                            for byte in bytes {
-                                self.vm.add_byte(byte)
-                            }
-                        },
-                        Err(e) => {
-                            eprintln!("Unable to decode hex string, Please enter 4 groups of 2 hex characters.\n Error: {e}")
-                        },
+                    let parsed_program = program(buffer);
+                    if !parsed_program.is_ok() {
+                        eprintln!("Unable to parse input");
+                        continue;
                     }
+
+                    let (_, result) = parsed_program.unwrap();
+
+                    let bytecode = result.to_bytes();
+
+                    for byte in bytecode {
+                        self.vm.add_byte(byte);
+                    }
+
                     self.vm.run_once();
                 },
             }
