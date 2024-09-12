@@ -8,8 +8,8 @@ use nom::{
 };
 
 use super::{
-    directive_parsers::directive, label_parsers::label_declaration, opcode_parsers::opcode,
-    operand_parser::operand, SymbolTable, Token,
+    label_parsers::label_declaration, opcode_parsers::opcode, operand_parser::operand, SymbolTable,
+    Token,
 };
 
 #[derive(Debug, PartialEq, Clone)]

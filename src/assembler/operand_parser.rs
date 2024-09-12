@@ -10,10 +10,7 @@ use nom::{
     IResult,
 };
 
-use super::{
-    label_parsers::{label_declaration, label_usage},
-    register_parser::register,
-};
+use super::{label_parsers::label_usage, register_parser::register};
 
 /// Parses an integer operand from a string.
 ///
