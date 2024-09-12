@@ -1,6 +1,12 @@
 use crate::assembler::Token;
 use crate::instruction::Opcode;
-use nom::{character::complete::alpha1, combinator::map_res, error::context, IResult};
+use nom::{
+    character::complete::{alpha1, multispace0},
+    combinator::map_res,
+    error::context,
+    sequence::preceded,
+    IResult,
+};
 
 /// 解析 opcode 字符串
 ///
@@ -23,11 +29,14 @@ use nom::{character::complete::alpha1, combinator::map_res, error::context, IRes
 pub fn opcode(input: &str) -> IResult<&str, Token> {
     context(
         "opcode",
-        map_res(alpha1, |s: &str| {
-            Ok::<Token, &str>(Token::Op {
-                code: Opcode::from(s.to_lowercase().as_str()),
-            })
-        }),
+        preceded(
+            multispace0,
+            map_res(alpha1, |s: &str| {
+                Ok::<Token, &str>(Token::Op {
+                    code: Opcode::from(s.to_lowercase().as_str()),
+                })
+            }),
+        ),
     )(input)
 }
 

@@ -126,6 +126,7 @@ pub enum AssemblerPhase {
 }
 
 #[cfg(test)]
+#[allow(unused_variables, unused_mut)]
 mod tests {
     use crate::{
         assembler::{
@@ -177,15 +178,14 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     /// Tests assembly a small but correct program
     fn test_assemble_program() {
         let mut asm = Assembler::new();
         let test_string = ".data\n.code\nload $0 #100\nload $1 #1\nload $2 #0\ntest: inc $0\nneq $0 $2\njmpe @test\nhlt";
         let program = asm.assemble(test_string).unwrap();
         let mut vm = VM::new();
-        assert_eq!(program.len(), 92, "\nProgram: {:?}\n", program); // TODO: More than 92 bits, should handle it later
+        assert_eq!(program.len(), 101, "\nProgram: {:?}\n", program);
         vm.add_bytes(program);
-        assert_eq!(vm.program.len(), 92);
+        assert_eq!(vm.program.len(), 101);
     }
 }

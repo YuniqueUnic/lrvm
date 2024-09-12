@@ -43,7 +43,7 @@ impl AssemblerInstruction {
             },
             _ => {
                 // 如果操作码字段中没有操作码，打印信息并终止程序
-                eprintln!("Non-Opcode found in opcode field");
+                eprintln!("Non-Opcode found in opcode field: {:?}", self.opcode);
                 // std::process::exit(1);
             },
         }
@@ -240,5 +240,25 @@ mod tests {
 
         let result = instruction_combined("  add    $0 $1    $2\n");
         assert_eq!(result, Ok(("", expect)));
+    }
+
+    #[test]
+    fn test_parse_instruction_form_four() {
+        let expect = AssemblerInstruction {
+            opcode: Some(Token::Op { code: Opcode::INC }),
+            operand1: Some(Token::Register { reg_num: 0 }),
+            operand2: None,
+            operand3: None,
+            label: Some(Token::LabelDeclaration {
+                name: String::from("test"),
+            }),
+            directive: None,
+        };
+
+        let result = instruction_combined("test: inc $0\n");
+        assert_eq!(result, Ok(("", expect.clone())));
+
+        let result = instruction_combined("  test: inc $0 \n    ");
+        assert_eq!(result, Ok(("", expect.clone())));
     }
 }

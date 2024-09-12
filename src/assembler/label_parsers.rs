@@ -9,6 +9,7 @@ use nom::{
 
 use super::Token;
 
+/// Looks for a user-defined label, such as `label1:`
 pub fn label_declaration(input: &str) -> IResult<&str, Token> {
     context(
         "label_declaration",
@@ -23,6 +24,7 @@ pub fn label_declaration(input: &str) -> IResult<&str, Token> {
     )(input)
 }
 
+/// Looks for a user-defined label, such as `@label1`
 pub fn label_usage(input: &str) -> IResult<&str, Token> {
     context(
         "label_usage",
