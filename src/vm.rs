@@ -33,7 +33,7 @@ impl VM {
             return 1;
         }
         // If the header is valid, we need to change the PC to be at bit 65.
-        self.pc = 65;
+        self.pc = 64;
         println!("first value: {}", self.program[self.pc]);
 
         let mut is_done = false;

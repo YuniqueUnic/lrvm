@@ -56,7 +56,7 @@ impl AssemblerInstruction {
             }
         }
 
-        while results.len() < 4 {
+        while 0 < results.len() && results.len() < 4 {
             results.push(0);
         }
 

@@ -22,7 +22,7 @@ pub fn prepend_header(mut bytes: Vec<u8>) -> Vec<u8> {
     for byte in PIE_HEADER_PREFIX.into_iter() {
         prepension.push(byte);
     }
-    while prepension.len() <= PIE_HEADER_LENGTH {
+    while prepension.len() < PIE_HEADER_LENGTH {
         prepension.push(0);
     }
     prepension.append(&mut bytes);
@@ -184,8 +184,8 @@ mod tests {
         let test_string = ".data\n.code\nload $0 #100\nload $1 #1\nload $2 #0\ntest: inc $0\nneq $0 $2\njmpe @test\nhlt";
         let program = asm.assemble(test_string).unwrap();
         let mut vm = VM::new();
-        assert_eq!(program.len(), 101, "\nProgram: {:?}\n", program);
+        assert_eq!(program.len(), 92, "\nProgram: {:?}\n", program);
         vm.add_bytes(program);
-        assert_eq!(vm.program.len(), 101);
+        assert_eq!(vm.program.len(), 92);
     }
 }
