@@ -1,9 +1,9 @@
 use nom::{
     branch::alt,
     character::complete::{line_ending, multispace0},
-    combinator::{eof, map},
+    combinator::{eof, map, opt},
     error::context,
-    sequence::{terminated, tuple},
+    sequence::{preceded, terminated, tuple},
     IResult,
 };
 
@@ -101,17 +101,25 @@ pub fn instruction_one(input: &str) -> IResult<&str, AssemblerInstruction> {
     context(
         // use context to show better error msg when failed to parse
         "instruction_one",
-        terminated(
-            map(
-                tuple((opcode_load, register, integer_operand)),
-                |(o, r, i)| AssemblerInstruction {
-                    opcode: o,
-                    operand1: Some(r),
-                    operand2: Some(i),
-                    operand3: None,
-                },
+        preceded(
+            multispace0,
+            terminated(
+                map(
+                    tuple((
+                        opcode_load,
+                        opt(alt((register, integer_operand))),
+                        opt(alt((register, integer_operand))),
+                        opt(alt((register, integer_operand))),
+                    )),
+                    |(o, o1, o2, o3)| AssemblerInstruction {
+                        opcode: o,
+                        operand1: o1,
+                        operand2: o2,
+                        operand3: o3,
+                    },
+                ),
+                alt((multispace0, line_ending, eof)),
             ),
-            alt((multispace0, line_ending, eof)),
         ),
     )(input)
 }
@@ -137,7 +145,42 @@ mod tests {
         let result = instruction_one("load $0 #100\n");
         assert_eq!(result, Ok(("", expect.clone())));
 
-        let result = instruction_one("load $0 #100     \n    ");
+        let result = instruction_one("  load $0 #100     \n    ");
+        assert_eq!(result, Ok(("", expect)));
+    }
+
+    #[test]
+    fn test_parse_instruction_form_two() {
+        let expect = AssemblerInstruction {
+            opcode: Token::Op { code: Opcode::HLT },
+            operand1: None,
+            operand2: None,
+            operand3: None,
+        };
+
+        let result = instruction_one("hlt\n");
+        assert_eq!(result, Ok(("", expect.clone())));
+
+        let result = instruction_one("hlt \n    ");
+        assert_eq!(result, Ok(("", expect)));
+
+        let result = instruction_one("     hlt \n    ");
+        assert_eq!(result, Ok(("", expect)));
+    }
+
+    #[test]
+    fn test_parse_instruction_form_three() {
+        let expect = AssemblerInstruction {
+            opcode: Token::Op { code: Opcode::ADD },
+            operand1: Some(Token::Register { reg_num: 0 }),
+            operand2: Some(Token::Register { reg_num: 1 }),
+            operand3: Some(Token::Register { reg_num: 2 }),
+        };
+
+        let result = instruction_one("add $0 $1 $2\n");
+        assert_eq!(result, Ok(("", expect.clone())));
+
+        let result = instruction_one("  add    $0 $1    $2\n");
         assert_eq!(result, Ok(("", expect)));
     }
 }

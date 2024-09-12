@@ -52,5 +52,7 @@ mod tests {
         assert_eq!(result.is_ok(), false);
         let result = register("$a");
         assert_eq!(result.is_ok(), false);
+        let result = register("$ 100");
+        assert_eq!(result.is_ok(), false);
     }
 }

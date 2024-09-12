@@ -193,4 +193,12 @@ mod tests {
         let opcode = Opcode::IGL;
         assert_eq!(opcode, Opcode::IGL);
     }
+
+    #[test]
+    fn test_str_to_opcode() {
+        let opcode = Opcode::from("hlt");
+        assert_eq!(opcode, Opcode::HLT);
+        let opcode = Opcode::from("illegal");
+        assert_eq!(opcode, Opcode::IGL);
+    }
 }

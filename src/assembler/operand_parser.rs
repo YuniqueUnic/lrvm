@@ -9,28 +9,28 @@ use nom::{
     IResult,
 };
 
-/// Parses a register token from the input string.
+/// Parses an integer operand from a string.
 ///
-/// The register token starts with a '$' followed by at least one digit.
-/// This function skips leading spaces and expects the token to be in this specific format.
+/// This function expects the input string to contain an integer operand prefixed by a '#'.
+/// It skips leading spaces, then reads the '#' followed by at least one digit.
 ///
 /// # Arguments
-/// * `input` - The input string to parse.
+/// * `input` - A string potentially containing an integer operand.
 ///
 /// # Returns
-/// * `IResult<&str, Token>` - The parsing result, either a Token with the parsed register number
-///   or an error.
+/// * `IResult<&str, Token>` - A result containing either a `Token` representing the integer operand
+///   or an error, along with any remaining unparsed input string.
 pub fn integer_operand(input: &str) -> IResult<&str, Token> {
     context(
         "integer_operand",
         // Skip any leading spaces
         preceded(
             multispace0, // skip spaces first
-            // Skip the '$' and read at least one digit
+            // Skip the '#' and read at least one digit
             map_res(
-                preceded(tag("#"), digit1), // skip the $ first
+                preceded(tag("#"), digit1), // skip the # first
                 |reg_num: &str| {
-                    // Convert the string representation of the register number to an unsigned 8-bit integer
+                    // Convert the string representation of the number to an i32 and create a Token::IntegerOperand
                     Ok::<Token, &str>(Token::IntegerOperand {
                         value: reg_num.parse::<i32>().unwrap(),
                     })
@@ -56,6 +56,9 @@ mod tests {
         let result = integer_operand("10");
         assert_eq!(result.is_ok(), false);
         let result = integer_operand("#a");
+        assert_eq!(result.is_ok(), false);
+
+        let result = integer_operand("# 10");
         assert_eq!(result.is_ok(), false);
     }
 }
