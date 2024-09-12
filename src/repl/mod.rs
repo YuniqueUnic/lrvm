@@ -1,4 +1,5 @@
 use crate::assembler::program_parser::program;
+use crate::assembler::Assembler;
 use crate::vm::VM;
 
 use std;
@@ -12,6 +13,7 @@ pub struct REPL {
     command_buffer: Vec<String>,
     // the VM the REPL will use to execute code
     vm: VM,
+    asm: Assembler,
 }
 
 impl REPL {
@@ -20,6 +22,7 @@ impl REPL {
         REPL {
             command_buffer: vec![],
             vm: VM::new(),
+            asm: Assembler::new(),
         }
     }
 
@@ -56,7 +59,7 @@ impl REPL {
 
                     let (_, result) = parsed_program.unwrap();
 
-                    let bytecode = result.to_bytes();
+                    let bytecode = result.to_bytes(&self.asm.symbols);
 
                     for byte in bytecode {
                         self.vm.add_byte(byte);
@@ -114,7 +117,9 @@ impl REPL {
                 return;
             },
         };
-        self.vm.program.append(&mut program.to_bytes());
+        self.vm
+            .program
+            .append(&mut program.to_bytes(&self.asm.symbols));
     }
 
     #[allow(dead_code)]

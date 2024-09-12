@@ -1,47 +1,53 @@
-use crate::assembler::instruction_parsers::{instruction_combined, AssemblerInstruction};
-use nom::{combinator::map, error::context, multi::many1, IResult};
+use crate::assembler::instruction_parsers::AssemblerInstruction;
+use nom::{branch::alt, combinator::map, error::context, multi::many1, IResult};
+
+use crate::assembler::SymbolTable;
+
+use super::{directive_parsers::directive, instruction_parsers::instruction};
 
 #[derive(Debug, PartialEq)]
 pub struct Program {
-    instructions: Vec<AssemblerInstruction>,
+    pub instructions: Vec<AssemblerInstruction>,
 }
 
 impl Program {
-    pub fn to_bytes(&self) -> Vec<u8> {
+    pub fn to_bytes(&self, symbols: &SymbolTable) -> Vec<u8> {
         let mut program_bytes = vec![];
         for instruction in &self.instructions {
-            program_bytes.append(&mut instruction.to_bytes());
+            program_bytes.append(&mut instruction.to_bytes(symbols));
         }
         program_bytes
     }
 }
 
-/// 解析程序的主函数
+/// 解析输入字符串并返回一个程序结构。
 ///
-/// # 参数
-/// - `input`: 一个字符串切片，表示程序的输入
+/// 此函数是解析程序的入口点，它使用 Combinate 解析库中的 context, map, many1 和 alt 组合器
+/// 来解析输入。该函数首先尝试匹配一系列指令或指令集，然后将这些指令封装到 Program 结构中。
 ///
-/// # 返回值
-/// 返回一个 `IResult<&str, Program>` 类型，其中包含两个主要部分：
-/// - 第一个元素是剩余未解析的输入字符串切片
-/// - 第二个元素是解析出的程序结构 `Program`
+/// 参数：
+/// - input: &str - 待解析的输入字符串。
 ///
-/// # 说明
-/// 该函数使用 `context` 和 `map` 组合来解析输入字符串，将其转换为 `Program` 结构体。
-/// `context` 提供了一个错误上下文，当解析发生错误时提供更多的错误信息。
-/// `map` 函数将 `many1(instruction_one)` 的结果（一系列的指令）转换为一个 `Program` 实例。
-/// `instruction_one` 是一个解析单个指令的函数，`many1` 保证了至少解析一个指令。
+/// 返回：
+/// - IResult<&str, Program> - 解析结果，包含解析得到的 Program 结构和剩余未解析的输入字符串。
 pub fn program(input: &str) -> IResult<&str, Program> {
+    // 使用 context 组合器为解析过程提供上下文信息，当解析失败时能够提供更丰富的错误信息。
+    // 这里将上下文命名为"program"，以便在错误消息中标识出是在解析程序级别的结构。
     context(
         "program",
-        map(many1(instruction_combined), |instructions| Program {
-            instructions,
+        // 使用 map 组合器将解析结果转换为 Program 结构。
+        // many1 组合器用于解析一个或多个指令或指令集，alt 组合器用于在指令和指令集之间进行选择。
+        map(many1(alt((instruction, directive))), |instructions| {
+            // 将解析到的指令封装到 Program 结构中。
+            Program { instructions }
         }),
     )(input)
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::assembler::SymbolTable;
+
     use super::program;
 
     #[test]
@@ -61,18 +67,27 @@ mod tests {
 
     #[test]
     fn test_program_to_bytes() {
+        let symbols = SymbolTable::new();
+
         let result = program("load $0 #100\n");
         assert_eq!(result.is_ok(), true);
         let (_, program_res) = result.unwrap();
-        let bytecode = program_res.to_bytes();
+        let bytecode = program_res.to_bytes(&symbols);
         assert_eq!(bytecode.len(), 4);
         println!("load $0 #100  ==To_Bytes==> {:?}", bytecode);
 
         let result = program("load $0 #1000  \n   ");
         assert_eq!(result.is_ok(), true);
         let (_, program_res) = result.unwrap();
-        let bytecode = program_res.to_bytes();
+        let bytecode = program_res.to_bytes(&symbols);
         assert_eq!(bytecode.len(), 4);
         println!("load $0 #1000 ==To_Bytes==> {:?}", bytecode);
+    }
+
+    #[test]
+    fn test_complete_program() {
+        let test_program = "  .data\nhello: .asciiz 'Hello everyone!'\n.code\nhlt";
+        let result = program(test_program);
+        assert_eq!(result.is_ok(), true, "result:{:?}", result);
     }
 }

@@ -5,6 +5,7 @@ pub mod vm;
 
 extern crate nom;
 
+/// Starts the REPL that will run until the user kill it;
 fn main() {
     let mut repl = repl::REPL::new();
 

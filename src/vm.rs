@@ -1,4 +1,4 @@
-use crate::instruction::Opcode;
+use crate::{assembler::PIE_HEADER_PREFIX, instruction::Opcode};
 
 pub struct VM {
     // Simulate hard registers
@@ -27,23 +27,28 @@ impl VM {
         }
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self) -> u32 {
+        if !self.verify_header() {
+            println!("Header was incorrect");
+            return 1;
+        }
+        // If the header is valid, we need to change the PC to be at bit 65.
+        self.pc = 65;
+        println!("first value: {}", self.program[self.pc]);
+
         let mut is_done = false;
         while !is_done {
             is_done = self.execute_instruction();
         }
+        0
     }
 
     pub fn run_once(&mut self) {
         self.execute_instruction();
     }
 
-    pub fn get_test_vm() -> VM {
-        let mut test_vm = VM::new();
-        test_vm.equal_flag = false;
-        // test_vm.registers[0] = 5;
-        // test_vm.registers[1] = 10;
-        test_vm
+    fn verify_header(&self) -> bool {
+        self.program[0..4] == PIE_HEADER_PREFIX
     }
 
     pub fn add_byte(&mut self, byte: u8) {
@@ -56,7 +61,7 @@ impl VM {
 
     fn execute_instruction(&mut self) -> bool {
         if self.pc >= self.program.len() {
-            return false;
+            return true;
         }
 
         match self.decode_opcode() {
@@ -65,93 +70,84 @@ impl VM {
                 let number = self.next_16_bits(); // get the next 16 bits where store the number ready to store in the register
                 self.registers[register] = number as i32; // store the number in the register
                                                           // continue;                                          // Start next iteration that waiting for reading the next 8 bits opcode
-                false
             },
             Opcode::ADD => {
                 let register1 = self.registers[self.next_8_bits() as usize];
                 let register2 = self.registers[self.next_8_bits() as usize];
                 self.registers[self.next_8_bits() as usize] = register1 + register2;
-                false
             },
             Opcode::SUB => {
                 let register1 = self.registers[self.next_8_bits() as usize];
                 let register2 = self.registers[self.next_8_bits() as usize];
                 self.registers[self.next_8_bits() as usize] = register1 - register2;
-                false
             },
             Opcode::MUL => {
                 let register1 = self.registers[self.next_8_bits() as usize];
                 let register2 = self.registers[self.next_8_bits() as usize];
+                println!("register1:{:?}, register2:{:?}", register1, register2);
                 self.registers[self.next_8_bits() as usize] = register1 * register2;
-                false
             },
             Opcode::DIV => {
                 let register1 = self.registers[self.next_8_bits() as usize];
                 let register2 = self.registers[self.next_8_bits() as usize];
                 self.registers[self.next_8_bits() as usize] = register1 / register2;
                 self.reminder = (register1 % register2) as u32;
-                false
             },
             Opcode::HLT => {
                 println!("Hit the HLT");
-                true
+                return true;
+            },
+            Opcode::IGL => {
+                eprintln!("Illegal instruction encountered");
+                return true;
             },
             Opcode::JMP => {
                 let target = self.registers[self.next_8_bits() as usize];
                 self.pc = target as usize;
-                false
             },
             Opcode::JMPF => {
                 let value = self.registers[self.next_8_bits() as usize];
                 self.pc += value as usize;
-                false
             },
             Opcode::JMPB => {
                 let value = self.registers[self.next_8_bits() as usize];
                 self.pc -= value as usize;
-                false
             },
             Opcode::EQ => {
                 let register1 = self.registers[self.next_8_bits() as usize];
                 let register2 = self.registers[self.next_8_bits() as usize];
                 self.equal_flag = register1 == register2;
                 self.next_8_bits(); //eat the next 8 bits
-                false
             },
             Opcode::NEQ => {
                 let register1 = self.registers[self.next_8_bits() as usize];
                 let register2 = self.registers[self.next_8_bits() as usize];
                 self.equal_flag = register1 != register2;
                 self.next_8_bits(); //eat the next 8 bits
-                false
             },
             Opcode::GTE => {
                 let register1 = self.registers[self.next_8_bits() as usize];
                 let register2 = self.registers[self.next_8_bits() as usize];
                 self.equal_flag = register1 >= register2;
                 self.next_8_bits(); //eat the next 8 bits
-                false
             },
             Opcode::LTE => {
                 let register1 = self.registers[self.next_8_bits() as usize];
                 let register2 = self.registers[self.next_8_bits() as usize];
                 self.equal_flag = register1 <= register2;
                 self.next_8_bits(); //eat the next 8 bits
-                false
             },
             Opcode::LT => {
                 let register1 = self.registers[self.next_8_bits() as usize];
                 let register2 = self.registers[self.next_8_bits() as usize];
                 self.equal_flag = register1 < register2;
                 self.next_8_bits(); //eat the next 8 bits
-                false
             },
             Opcode::GT => {
                 let register1 = self.registers[self.next_8_bits() as usize];
                 let register2 = self.registers[self.next_8_bits() as usize];
                 self.equal_flag = register1 > register2;
                 self.next_8_bits(); //eat the next 8 bits
-                false
             },
             Opcode::JMPE => {
                 let register = self.next_8_bits() as usize;
@@ -161,22 +157,21 @@ impl VM {
                 } else {
                     // TODO: Fix the bits
                 }
-                false
             },
             Opcode::ALOC => {
                 let register = self.next_8_bits() as usize;
                 let bytes = self.registers[register];
                 let new_end = self.heap.len() as i32 + bytes;
                 self.heap.resize(new_end as usize, 0);
-                false
             },
-
-            Opcode::IGL => {
-                eprintln!("Illegal instruction encountered");
-                true
+            _ => {
+                println!(
+                    "Unknown opcode:{:?} has not been impl;",
+                    self.decode_opcode()
+                )
             },
-            _ => false,
         }
+        false
     }
 
     fn decode_opcode(&mut self) -> Opcode {
@@ -206,7 +201,17 @@ impl VM {
 mod tests {
     use std::vec;
 
-    use super::*;
+    use crate::assembler::prepend_header;
+
+    use super::VM;
+
+    pub fn get_test_vm() -> VM {
+        let mut test_vm = VM::new();
+        test_vm.equal_flag = false;
+        test_vm.registers[0] = 5;
+        test_vm.registers[1] = 10;
+        test_vm
+    }
 
     #[test]
     fn test_create_vm() {
@@ -215,7 +220,7 @@ mod tests {
     }
 
     #[test]
-    fn test_opcode_hlt() {
+    fn test_hlt_opcode() {
         let mut test_vm = VM::new();
         test_vm.program = vec![5, 0, 0, 0];
         test_vm.run_once();
@@ -223,7 +228,7 @@ mod tests {
     }
 
     #[test]
-    fn test_opcode_igl() {
+    fn test_igl_opcode() {
         let mut test_vm = VM::new();
         let test_bytes = vec![200, 0, 0, 0];
         test_vm.program = test_bytes;
@@ -241,8 +246,53 @@ mod tests {
     }
 
     #[test]
+    fn test_add_opcode() {
+        let mut test_vm = get_test_vm();
+        test_vm.program = vec![1, 0, 1, 2];
+        test_vm.program = prepend_header(test_vm.program);
+        test_vm.run();
+        assert_eq!(test_vm.registers[2], 15);
+    }
+
+    #[test]
+    fn test_sub_opcode() {
+        let mut test_vm = get_test_vm();
+        test_vm.program = vec![2, 1, 0, 2];
+        test_vm.program = prepend_header(test_vm.program);
+        test_vm.run();
+        assert_eq!(test_vm.registers[2], 5);
+    }
+
+    #[test]
+    fn test_mul_opcode() {
+        let mut test_vm = get_test_vm();
+        test_vm.program = vec![3, 0, 1, 2];
+        test_vm.program = prepend_header(test_vm.program);
+        println!(
+            "\test_vm.program:{:?} ---> len:{:?}\n",
+            test_vm.program,
+            test_vm.program.len()
+        );
+        test_vm.run();
+        assert_eq!(
+            test_vm.registers[2], 50,
+            "test_vm.registers:{:?}",
+            test_vm.registers
+        );
+    }
+
+    #[test]
+    fn test_div_opcode() {
+        let mut test_vm = get_test_vm();
+        test_vm.program = vec![4, 1, 0, 2];
+        test_vm.program = prepend_header(test_vm.program);
+        test_vm.run();
+        assert_eq!(test_vm.registers[2], 2);
+    }
+
+    #[test]
     fn test_jmp_opcode() {
-        let mut test_vm = VM::get_test_vm();
+        let mut test_vm = get_test_vm();
         test_vm.registers[0] = 4;
         test_vm.program = vec![6, 0, 0, 0];
         test_vm.run_once();
@@ -251,7 +301,7 @@ mod tests {
 
     #[test]
     fn test_jmpf_opcode() {
-        let mut test_vm = VM::get_test_vm();
+        let mut test_vm = get_test_vm();
         test_vm.registers[0] = 2;
         test_vm.program = vec![7, 0, 0, 0, 5, 0, 0, 0];
         test_vm.run_once();
@@ -260,7 +310,7 @@ mod tests {
 
     #[test]
     fn test_jmpb_opcode() {
-        let mut test_vm = VM::get_test_vm();
+        let mut test_vm = get_test_vm();
         test_vm.registers[1] = 6;
         test_vm.program = vec![0, 0, 0, 10, 8, 1, 0, 0, 0];
         test_vm.run_once(); // currently, the LOAD opcode has taken [0,0,0,10] => load 0 << 8 + 10 at the registers[0]
@@ -271,7 +321,7 @@ mod tests {
 
     #[test]
     fn test_eq_opcode() {
-        let mut test_vm = VM::get_test_vm();
+        let mut test_vm = get_test_vm();
         test_vm.registers[0] = 6;
         test_vm.registers[1] = 6;
         test_vm.program = vec![9, 0, 1, 10, 9, 1, 0, 0, 0];
@@ -286,7 +336,7 @@ mod tests {
 
     #[test]
     fn test_jmpe_opcode() {
-        let mut test_vm = VM::get_test_vm();
+        let mut test_vm = get_test_vm();
         test_vm.equal_flag = true;
         test_vm.registers[0] = 7;
         test_vm.program = vec![15, 0, 0, 0, 17, 0, 0, 0, 17, 0, 0, 0];
@@ -297,7 +347,7 @@ mod tests {
 
     #[test]
     fn test_neq_opcdoe() {
-        let mut test_vm = VM::get_test_vm();
+        let mut test_vm = get_test_vm();
         test_vm.registers[0] = 10;
         test_vm.registers[1] = 10;
         test_vm.program = vec![10, 1, 0, 22, 10, 0, 1, 0];
@@ -310,7 +360,7 @@ mod tests {
 
     #[test]
     fn test_gte_opcdoe() {
-        let mut test_vm = VM::get_test_vm();
+        let mut test_vm = get_test_vm();
         test_vm.registers[1] = 12;
         test_vm.registers[0] = 10;
         test_vm.program = vec![11, 1, 0, 22, 11, 1, 0, 0, 11, 1, 0, 0];
@@ -326,7 +376,7 @@ mod tests {
 
     #[test]
     fn test_lte_opcdoe() {
-        let mut test_vm = VM::get_test_vm();
+        let mut test_vm = get_test_vm();
         test_vm.registers[1] = 10;
         test_vm.registers[0] = 12;
         test_vm.program = vec![12, 1, 0, 22, 12, 1, 0, 0, 12, 1, 0, 0];
@@ -342,7 +392,7 @@ mod tests {
 
     #[test]
     fn test_lt_opcdoe() {
-        let mut test_vm = VM::get_test_vm();
+        let mut test_vm = get_test_vm();
         test_vm.registers[1] = 10;
         test_vm.registers[0] = 12;
         test_vm.program = vec![13, 1, 0, 22, 13, 1, 0, 0, 13, 1, 0, 0];
@@ -358,7 +408,7 @@ mod tests {
 
     #[test]
     fn test_gt_opcdoe() {
-        let mut test_vm = VM::get_test_vm();
+        let mut test_vm = get_test_vm();
         test_vm.registers[1] = 12;
         test_vm.registers[0] = 10;
         test_vm.program = vec![14, 1, 0, 22, 14, 1, 0, 0, 14, 1, 0, 0];
@@ -374,7 +424,7 @@ mod tests {
 
     #[test]
     fn test_aloc_opcode() {
-        let mut test_vm = VM::get_test_vm();
+        let mut test_vm = get_test_vm();
         test_vm.registers[0] = 1024;
         test_vm.program = vec![17, 0, 0, 0];
         test_vm.run_once();
