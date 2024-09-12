@@ -8,15 +8,18 @@ use nom::{
 };
 
 use super::{
-    opcode_parsers::opcode_load, operand_parser::integer_operand, register_parser::register, Token,
+    directive_parsers::directive, label_parsers::label_declaration, opcode_parsers::opcode_load,
+    operand_parser::operand, Token,
 };
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct AssemblerInstruction {
-    opcode: Token,
-    operand1: Option<Token>,
-    operand2: Option<Token>,
-    operand3: Option<Token>,
+    pub opcode: Option<Token>,
+    pub label: Option<Token>,
+    pub directive: Option<Token>,
+    pub operand1: Option<Token>,
+    pub operand2: Option<Token>,
+    pub operand3: Option<Token>,
 }
 
 impl AssemblerInstruction {
@@ -34,7 +37,7 @@ impl AssemblerInstruction {
 
         // 根据操作码将其转换为字节码
         match self.opcode {
-            Token::Op { code } => {
+            Some(Token::Op { code }) => {
                 // 将操作码转换为 u8 类型并添加到结果向量中
                 results.push(code as u8);
             },
@@ -97,22 +100,25 @@ impl AssemblerInstruction {
     }
 }
 
-pub fn instruction_one(input: &str) -> IResult<&str, AssemblerInstruction> {
+pub fn instruction_combined(input: &str) -> IResult<&str, AssemblerInstruction> {
     context(
         // use context to show better error msg when failed to parse
-        "instruction_one",
+        "instruction_combined",
         preceded(
             multispace0,
             terminated(
                 map(
                     tuple((
+                        opt(label_declaration),
                         opcode_load,
-                        opt(alt((register, integer_operand))),
-                        opt(alt((register, integer_operand))),
-                        opt(alt((register, integer_operand))),
+                        opt(operand),
+                        opt(operand),
+                        opt(operand),
                     )),
-                    |(o, o1, o2, o3)| AssemblerInstruction {
-                        opcode: o,
+                    |(l, o, o1, o2, o3)| AssemblerInstruction {
+                        opcode: Some(o),
+                        label: l,
+                        directive: None,
                         operand1: o1,
                         operand2: o2,
                         operand3: o3,
@@ -124,6 +130,10 @@ pub fn instruction_one(input: &str) -> IResult<&str, AssemblerInstruction> {
     )(input)
 }
 
+pub fn instruction(input: &str) -> IResult<&str, AssemblerInstruction> {
+    context("instruction", alt((instruction, directive)))(input)
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{
@@ -131,56 +141,62 @@ mod tests {
         instruction::Opcode,
     };
 
-    use super::instruction_one;
+    use super::instruction_combined;
 
     #[test]
     fn test_parse_instruction_form_one() {
         let expect = AssemblerInstruction {
-            opcode: Token::Op { code: Opcode::LOAD },
+            opcode: Some(Token::Op { code: Opcode::LOAD }),
             operand1: Some(Token::Register { reg_num: 0 }),
             operand2: Some(Token::IntegerOperand { value: 100 }),
             operand3: None,
+            label: None,
+            directive: None,
         };
 
-        let result = instruction_one("load $0 #100\n");
+        let result = instruction_combined("load $0 #100\n");
         assert_eq!(result, Ok(("", expect.clone())));
 
-        let result = instruction_one("  load $0 #100     \n    ");
+        let result = instruction_combined("  load $0 #100     \n    ");
         assert_eq!(result, Ok(("", expect)));
     }
 
     #[test]
     fn test_parse_instruction_form_two() {
         let expect = AssemblerInstruction {
-            opcode: Token::Op { code: Opcode::HLT },
+            opcode: Some(Token::Op { code: Opcode::HLT }),
             operand1: None,
             operand2: None,
             operand3: None,
+            label: None,
+            directive: None,
         };
 
-        let result = instruction_one("hlt\n");
+        let result = instruction_combined("hlt\n");
         assert_eq!(result, Ok(("", expect.clone())));
 
-        let result = instruction_one("hlt \n    ");
-        assert_eq!(result, Ok(("", expect)));
+        let result = instruction_combined("hlt \n    ");
+        assert_eq!(result, Ok(("", expect.clone())));
 
-        let result = instruction_one("     hlt \n    ");
+        let result = instruction_combined("     hlt \n    ");
         assert_eq!(result, Ok(("", expect)));
     }
 
     #[test]
     fn test_parse_instruction_form_three() {
         let expect = AssemblerInstruction {
-            opcode: Token::Op { code: Opcode::ADD },
+            opcode: Some(Token::Op { code: Opcode::ADD }),
             operand1: Some(Token::Register { reg_num: 0 }),
             operand2: Some(Token::Register { reg_num: 1 }),
             operand3: Some(Token::Register { reg_num: 2 }),
+            label: None,
+            directive: None,
         };
 
-        let result = instruction_one("add $0 $1 $2\n");
+        let result = instruction_combined("add $0 $1 $2\n");
         assert_eq!(result, Ok(("", expect.clone())));
 
-        let result = instruction_one("  add    $0 $1    $2\n");
+        let result = instruction_combined("  add    $0 $1    $2\n");
         assert_eq!(result, Ok(("", expect)));
     }
 }

@@ -7,6 +7,8 @@ pub struct VM {
     pc: usize, // program counter, 8 bits
     // Running program bytes
     pub program: Vec<u8>, // program memory, 8 bits
+    // the heap memory
+    heap: Vec<u8>, // heap memory, 8 bits
     // The reminder of division operation
     reminder: u32,
     // the last compare result
@@ -19,6 +21,7 @@ impl VM {
             registers: [0; 32],
             program: vec![],
             pc: 0,
+            heap: vec![],
             reminder: 0,
             equal_flag: false,
         }
@@ -160,6 +163,13 @@ impl VM {
                 }
                 false
             },
+            Opcode::ALOC => {
+                let register = self.next_8_bits() as usize;
+                let bytes = self.registers[register];
+                let new_end = self.heap.len() as i32 + bytes;
+                self.heap.resize(new_end as usize, 0);
+                false
+            },
 
             Opcode::IGL => {
                 eprintln!("Illegal instruction encountered");
@@ -194,6 +204,8 @@ impl VM {
 
 #[cfg(test)]
 mod tests {
+    use std::vec;
+
     use super::*;
 
     #[test]
@@ -358,5 +370,14 @@ mod tests {
         test_vm.registers[1] = 1;
         test_vm.run_once();
         assert_eq!(test_vm.equal_flag, false);
+    }
+
+    #[test]
+    fn test_aloc_opcode() {
+        let mut test_vm = VM::get_test_vm();
+        test_vm.registers[0] = 1024;
+        test_vm.program = vec![17, 0, 0, 0];
+        test_vm.run_once();
+        assert_eq!(test_vm.heap.len(), 1024);
     }
 }

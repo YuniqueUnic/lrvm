@@ -1,6 +1,7 @@
 use crate::assembler::Token;
 
 use nom::{
+    branch::alt,
     bytes::complete::tag,
     character::complete::{digit1, multispace0},
     combinator::map_res,
@@ -8,6 +9,8 @@ use nom::{
     sequence::preceded,
     IResult,
 };
+
+use super::register_parser::register;
 
 /// Parses an integer operand from a string.
 ///
@@ -38,6 +41,10 @@ pub fn integer_operand(input: &str) -> IResult<&str, Token> {
             ),
         ),
     )(input)
+}
+
+pub fn operand(input: &str) -> IResult<&str, Token> {
+    context("operand", alt((integer_operand, register)))(input)
 }
 
 #[cfg(test)]

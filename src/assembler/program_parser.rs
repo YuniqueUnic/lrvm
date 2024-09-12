@@ -1,4 +1,4 @@
-use crate::assembler::instruction_parsers::{instruction_one, AssemblerInstruction};
+use crate::assembler::instruction_parsers::{instruction_combined, AssemblerInstruction};
 use nom::{combinator::map, error::context, multi::many1, IResult};
 
 #[derive(Debug, PartialEq)]
@@ -34,7 +34,7 @@ impl Program {
 pub fn program(input: &str) -> IResult<&str, Program> {
     context(
         "program",
-        map(many1(instruction_one), |instructions| Program {
+        map(many1(instruction_combined), |instructions| Program {
             instructions,
         }),
     )(input)
