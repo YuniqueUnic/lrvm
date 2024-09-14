@@ -7,6 +7,7 @@ pub mod assembler;
 pub mod cli;
 pub mod instruction;
 pub mod repl;
+pub mod scheduler;
 pub mod vm;
 
 extern crate nom;

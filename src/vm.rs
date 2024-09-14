@@ -2,6 +2,7 @@ use log::{debug, error, info};
 
 use crate::{assembler::PIE_HEADER_PREFIX, instruction::Opcode};
 
+#[derive(Debug, Clone)]
 pub struct VM {
     // Simulate hard registers
     pub registers: [i32; 32], // Why we use array instead of vector? Because we know the size of registers at the start.
