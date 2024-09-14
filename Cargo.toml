@@ -1,9 +1,17 @@
 [package]
 name = "lrvm"
 version = "0.1.0"
+authors = ["unic"]
+description = "A simple vm implementated by rust for lrvm language"
+categories = ["virtual machine"]
+license = "MIT OR Apache-2.0"
+readme = "./README.md"
 edition = "2021"
 
 [dependencies]
+byteorder = "1.5.0"
 clap = { version = "4.5.17", features = ["derive"] }
 clap_derive = { version = "4.0.0-rc.1" }
+env_logger = "0.11.5"
+log = "0.4.22"
 nom = "7.1.3"

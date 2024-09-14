@@ -1,10 +1,12 @@
 use std::vec;
 
+use assembler_errors::AssemblerError;
 use program_parser::{program, Program};
 use symbols::{Symbol, SymbolTable, SymbolType};
 
 use crate::instruction::Opcode;
 
+pub mod assembler_errors;
 pub mod directive_parsers;
 pub mod instruction_parsers;
 pub mod label_parsers;
@@ -14,7 +16,10 @@ pub mod program_parser;
 pub mod register_parser;
 pub mod symbols;
 
+/// Magic number that begins every bytecode file prefix. These spell out EPIE in ASCII, if you were wondering.
 pub const PIE_HEADER_PREFIX: [u8; 4] = [45, 50, 49, 45];
+
+/// Constant that determines how long the header is. There are 60 zeros left after the prefix, for later usage if needed.
 pub const PIE_HEADER_LENGTH: usize = 64;
 
 pub fn prepend_header(mut bytes: Vec<u8>) -> Vec<u8> {
@@ -38,19 +43,43 @@ pub enum Token {
     LabelUsage { name: String },
     Directive { name: String },
     IrString { name: String },
+    Comment,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Default)]
 pub struct Assembler {
+    /// Tracks which phase the assember is in
     phase: AssemblerPhase,
+    /// Symbol table for constants and variables
     pub symbols: SymbolTable,
+    /// The read-only data section constants are put in
+    pub ro: Vec<u8>,
+    /// The compiled bytecode generated from the assembly instructions
+    pub bytecode: Vec<u8>,
+    /// Tracks the current offset of the read-only section
+    ro_offset: u32,
+    /// A list of all the sections we've seen in the code
+    sections: Vec<AssemblerSection>,
+    /// The current section the assembler is in
+    current_section: Option<AssemblerSection>,
+    /// The current instruction the assembler is converting to bytecode
+    current_instruction: u32,
+    /// Any errors we find along the way. At the end, we'll present them to the user.
+    errors: Vec<AssemblerError>,
 }
 
 impl Assembler {
     pub fn new() -> Assembler {
         Assembler {
+            current_instruction: 0,
+            ro_offset: 0,
+            ro: vec![],
+            bytecode: vec![],
+            sections: vec![],
+            errors: vec![],
             phase: AssemblerPhase::First,
             symbols: SymbolTable::new(),
+            current_section: None,
         }
     }
 
@@ -123,6 +152,39 @@ impl Assembler {
 pub enum AssemblerPhase {
     First,
     Second,
+}
+
+impl Default for AssemblerPhase {
+    fn default() -> Self {
+        AssemblerPhase::First
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum AssemblerSection {
+    Data { starting_instruction: Option<u32> },
+    Code { starting_instruction: Option<u32> },
+    Unknown,
+}
+
+impl Default for AssemblerSection {
+    fn default() -> Self {
+        AssemblerSection::Unknown
+    }
+}
+
+impl From<&str> for AssemblerSection {
+    fn from(value: &str) -> Self {
+        match value {
+            ".data" => AssemblerSection::Data {
+                starting_instruction: None,
+            },
+            ".code" => AssemblerSection::Data {
+                starting_instruction: None,
+            },
+            _ => AssemblerSection::Unknown,
+        }
+    }
 }
 
 #[cfg(test)]
