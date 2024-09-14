@@ -1,3 +1,5 @@
+use log::{debug, error};
+
 use crate::{assembler::PIE_HEADER_PREFIX, instruction::Opcode};
 
 pub struct VM {
@@ -13,6 +15,8 @@ pub struct VM {
     reminder: u32,
     // the last compare result
     equal_flag: bool,
+    /// Contains the read-only section data
+    ro_data: Vec<u8>,
 }
 
 impl VM {
@@ -20,8 +24,9 @@ impl VM {
         VM {
             registers: [0; 32],
             program: vec![],
-            pc: 0,
+            ro_data: vec![],
             heap: vec![],
+            pc: 0,
             reminder: 0,
             equal_flag: false,
         }
@@ -34,7 +39,6 @@ impl VM {
         }
         // If the header is valid, we need to change the PC to be at bit 65.
         self.pc = 64;
-        println!("first value: {}", self.program[self.pc]);
 
         let mut is_done = false;
         while !is_done {
@@ -164,6 +168,30 @@ impl VM {
                 let new_end = self.heap.len() as i32 + bytes;
                 self.heap.resize(new_end as usize, 0);
             },
+            Opcode::PRTS => {
+                // PRTS 需要一个操作数，要么是字节码的只读部分中的起始索引
+                // 或者是一个符号（以 @symbol_name 的形式），它将在符号表中查找偏移量。
+                // 这条指令然后读取每个字节并打印它，直到它遇到一个 0x00 字节，这表示字符串的终止
+                let starting_offset = self.next_16_bits() as usize;
+                let mut ending_offset = starting_offset;
+                let slice = self.ro_data.as_slice();
+
+                // TODO: 是否能够找到一个更好的方法来做这个。也许我们可以存储字节长度而不是空终止？
+                // 或者某种形式的缓存，我们在 VM 启动时就通过整个 ro_data 并找到每个字符串及其结束字节位置？
+                while slice[ending_offset] != 0 {
+                    ending_offset += 1;
+                }
+                let result = std::str::from_utf8(&slice[starting_offset..ending_offset]);
+
+                match result {
+                    Ok(s) => {
+                        print!("{}", s);
+                    },
+                    Err(e) => {
+                        error!("为 prts 指令解码字符串时出错：{:#?}", e)
+                    },
+                }
+            },
             _ => {
                 println!(
                     "Unknown opcode:{:?} has not been impl;",
@@ -196,7 +224,6 @@ impl VM {
 }
 
 /// The Tests
-
 #[cfg(test)]
 mod tests {
     use std::vec;
@@ -429,5 +456,14 @@ mod tests {
         test_vm.program = vec![17, 0, 0, 0];
         test_vm.run_once();
         assert_eq!(test_vm.heap.len(), 1024);
+    }
+
+    #[test]
+    fn test_prts_opcode() {
+        let mut test_vm = get_test_vm();
+        test_vm.ro_data.append(&mut vec![72, 101, 108, 108, 111, 0]); // "Hello"
+        test_vm.program = vec![21, 0, 0, 0];
+        test_vm.run_once();
+        // TODO: How can we validate the output since it is just printing to stdout in a test?
     }
 }

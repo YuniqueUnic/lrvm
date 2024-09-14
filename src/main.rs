@@ -32,7 +32,7 @@ fn main() {
         let program = read_file(&filename);
         let mut asm = assembler::Assembler::new();
         let mut vm = vm::VM::new();
-        if let Some(p) = asm.assemble(&program) {
+        if let Ok(p) = asm.assemble(&program) {
             vm.add_bytes(p);
             vm.run();
         }

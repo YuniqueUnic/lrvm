@@ -89,14 +89,14 @@ impl AssemblerInstruction {
     }
 
     pub fn get_directive_name(&self) -> Option<String> {
-        match &self.label {
+        match &self.directive {
             Some(Token::Directive { name }) => Some(name.to_string()),
             _ => None,
         }
     }
 
     pub fn get_string_constant(&self) -> Option<String> {
-        match &self.label {
+        match &self.operand1 {
             Some(Token::IrString { name }) => Some(name.to_string()),
             _ => None,
         }
