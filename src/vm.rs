@@ -1,4 +1,4 @@
-use log::{debug, error};
+use log::{debug, error, info};
 
 use crate::{assembler::PIE_HEADER_PREFIX, instruction::Opcode};
 
@@ -88,7 +88,7 @@ impl VM {
             Opcode::MUL => {
                 let register1 = self.registers[self.next_8_bits() as usize];
                 let register2 = self.registers[self.next_8_bits() as usize];
-                println!("register1:{:?}, register2:{:?}", register1, register2);
+                debug!("register1:{:?}, register2:{:?}", register1, register2);
                 self.registers[self.next_8_bits() as usize] = register1 * register2;
             },
             Opcode::DIV => {
@@ -98,11 +98,11 @@ impl VM {
                 self.reminder = (register1 % register2) as u32;
             },
             Opcode::HLT => {
-                println!("Hit the HLT");
+                info!("Hit the HLT");
                 return true;
             },
             Opcode::IGL => {
-                eprintln!("Illegal instruction encountered");
+                error!("Illegal instruction encountered");
                 return true;
             },
             Opcode::JMP => {
@@ -228,6 +228,8 @@ impl VM {
 mod tests {
     use std::vec;
 
+    use log::debug;
+
     use crate::assembler::prepend_header;
 
     use super::VM;
@@ -295,7 +297,7 @@ mod tests {
         let mut test_vm = get_test_vm();
         test_vm.program = vec![3, 0, 1, 2];
         test_vm.program = prepend_header(test_vm.program);
-        println!(
+        debug!(
             "\test_vm.program:{:?} ---> len:{:?}\n",
             test_vm.program,
             test_vm.program.len()

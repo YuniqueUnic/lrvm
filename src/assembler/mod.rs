@@ -1,4 +1,4 @@
-use std::{io::SeekFrom, vec};
+use std::vec;
 
 use assembler_errors::AssemblerError;
 use instruction_parsers::AssemblerInstruction;
