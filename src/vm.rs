@@ -1,6 +1,22 @@
+use chrono::{DateTime, Utc};
 use log::{debug, error, info};
+use uuid::Uuid;
 
 use crate::{assembler::PIE_HEADER_PREFIX, instruction::Opcode};
+
+#[derive(Debug, Clone)]
+enum VMEventType {
+    Start,
+    GracefulStop { code: u32 },
+    Crash { code: u32 },
+}
+
+#[derive(Debug, Clone)]
+pub struct VMEvent {
+    event: VMEventType,
+    at: DateTime<Utc>,
+    application_id: Uuid,
+}
 
 #[derive(Debug, Clone)]
 pub struct VM {
@@ -18,6 +34,10 @@ pub struct VM {
     equal_flag: bool,
     /// Contains the read-only section data
     ro_data: Vec<u8>,
+    /// 用于标识这个虚拟机的唯一随机生成的 UUID
+    id: Uuid,
+
+    events: Vec<VMEvent>,
 }
 
 impl VM {
@@ -30,22 +50,43 @@ impl VM {
             pc: 0,
             reminder: 0,
             equal_flag: false,
+            id: Uuid::new_v4(),
+            events: vec![],
         }
     }
 
-    pub fn run(&mut self) -> u32 {
+    pub fn run(&mut self) -> Vec<VMEvent> {
+        self.events.push(VMEvent {
+            event: VMEventType::Start,
+            at: Utc::now(),
+            application_id: self.id.clone(),
+        });
+
         if !self.verify_header() {
+            self.events.push(VMEvent {
+                event: VMEventType::Crash { code: 1 },
+                at: Utc::now(),
+                application_id: self.id.clone(),
+            });
             println!("Header was incorrect");
-            return 1;
+            return self.events.clone();
         }
         // If the header is valid, we need to change the PC to be at bit 65.
         self.pc = 64;
 
-        let mut is_done = false;
-        while !is_done {
+        let mut is_done = None;
+        while is_done.is_none() {
             is_done = self.execute_instruction();
         }
-        0
+
+        self.events.push(VMEvent {
+            event: VMEventType::GracefulStop {
+                code: is_done.unwrap(),
+            },
+            at: Utc::now(),
+            application_id: self.id.clone(),
+        });
+        self.events.clone()
     }
 
     pub fn run_once(&mut self) {
@@ -64,9 +105,9 @@ impl VM {
         self.program.append(&mut bytes);
     }
 
-    fn execute_instruction(&mut self) -> bool {
+    fn execute_instruction(&mut self) -> Option<u32> {
         if self.pc >= self.program.len() {
-            return true;
+            return Some(1);
         }
 
         match self.decode_opcode() {
@@ -100,11 +141,11 @@ impl VM {
             },
             Opcode::HLT => {
                 info!("Hit the HLT");
-                return true;
+                return None;
             },
             Opcode::IGL => {
                 error!("Illegal instruction encountered");
-                return true;
+                return Some(1);
             },
             Opcode::JMP => {
                 let target = self.registers[self.next_8_bits() as usize];
@@ -200,7 +241,7 @@ impl VM {
                 )
             },
         }
-        false
+        None
     }
 
     fn decode_opcode(&mut self) -> Opcode {

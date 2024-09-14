@@ -26,8 +26,8 @@ pub const PIE_HEADER_LENGTH: usize = 64;
 
 pub fn prepend_header(mut bytes: Vec<u8>) -> Vec<u8> {
     let mut prepension = vec![];
-    for byte in &PIE_HEADER_PREFIX {
-        prepension.push(*byte);
+    for byte in PIE_HEADER_PREFIX.into_iter() {
+        prepension.push(byte);
     }
     while prepension.len() < PIE_HEADER_LENGTH {
         prepension.push(0 as u8);

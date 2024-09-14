@@ -35,7 +35,13 @@ fn main() {
         let mut vm = vm::VM::new();
         if let Ok(p) = asm.assemble(&program) {
             vm.add_bytes(p);
-            vm.run();
+            let events = vm.run();
+            println!("虚拟机事件");
+            println!("--------------------------");
+            for event in &events {
+                println!("{:#?}", event);
+            }
+            std::process::exit(0);
         }
     } else {
         start_repl();
