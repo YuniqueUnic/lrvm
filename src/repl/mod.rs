@@ -52,8 +52,14 @@ impl REPL {
                 ".history" => self.history(),
                 ".program" => self.program(),
                 ".registers" => self.registers(),
-                ".load_file" => self.load_file(),
-                ".spawn" => self.spawn(),
+                ".load_file" => {
+                    let contents = self.get_data_from_load();
+                    self.load_file(&contents);
+                },
+                ".spawn" => {
+                    let contents = self.get_data_from_load();
+                    self.spawn(&contents);
+                },
                 _ => {
                     let parsed_program = program(buffer);
                     if !parsed_program.is_ok() {
@@ -98,8 +104,8 @@ impl REPL {
         println!("End of registers Listing");
     }
 
-    fn load_file(&mut self) {
-        if let Some(contents) = self.get_data_from_load() {
+    fn load_file(&mut self, data_from_file: &Option<String>) {
+        if let Some(contents) = data_from_file {
             let program = match program(&contents) {
                 Ok((_reminder, program)) => program,
                 Err(e) => {
@@ -113,9 +119,8 @@ impl REPL {
         }
     }
 
-    fn spawn(&mut self) {
-        let contents = self.get_data_from_load();
-        if let Some(contents) = contents {
+    fn spawn(&mut self, data_from_file: &Option<String>) {
+        if let Some(contents) = data_from_file {
             match self.asm.assemble(&contents) {
                 Ok(mut assembled_program) => {
                     println!("Sending assembled program to VM");
@@ -182,5 +187,69 @@ impl REPL {
         }
 
         Ok(results)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{fs::OpenOptions, path::PathBuf};
+
+    use io::Error;
+
+    use super::*;
+
+    /// 读取文件内容到字符串
+    fn read_file_to_string(file_path: &str) -> Result<String, Error> {
+        let mut file = match OpenOptions::new().read(true).open(file_path) {
+            Ok(content) => content,
+            Err(e) => return Err(e),
+        };
+
+        let mut contents = String::new();
+        match file.read_to_string(&mut contents) {
+            Ok(_) => Ok(contents),
+            Err(e) => Err(e),
+        }
+    }
+
+    /// 获取给定路径的绝对路径
+    ///
+    /// 本函数通过获取当前工作目录并与给定的路径字符串拼接，来生成给定路径的绝对路径。
+    /// 如果无法获取当前工作目录，则会引发 panic。
+    ///
+    /// # 参数
+    /// * `path` - 一个表示相对当前工作目录的路径字符串
+    ///
+    /// # 返回值
+    /// * 返回一个`PathBuf`对象，表示拼接后的绝对路径
+    ///
+    /// # 错误处理
+    /// * 如果无法获取当前工作目录，函数将 panic
+    fn get_absolute_path(path: &str) -> PathBuf {
+        // 尝试获取当前工作目录
+        let current_dir = if let Ok(dir) = std::env::current_dir() {
+            dir
+        } else {
+            // 如果无法获取当前工作目录，输出错误信息并终止程序
+            panic!("Unable to get current directory")
+        };
+
+        // 将当前工作目录与给定路径字符串拼接，生成绝对路径
+        let path = current_dir.join(path);
+        path
+    }
+
+    #[test]
+    fn test_spawn() {
+        let test_file = get_absolute_path("docs/examples/hlt.iasm");
+
+        let contents = match read_file_to_string(test_file.to_str().unwrap()) {
+            Ok(content) => Some(content),
+            Err(err) => panic!("Unable to read file:{}", err),
+        };
+
+        let mut repl = REPL::new();
+        repl.spawn(&contents);
+        assert!(repl.asm.errors.is_empty());
     }
 }

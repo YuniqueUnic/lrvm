@@ -141,7 +141,7 @@ impl VM {
             },
             Opcode::HLT => {
                 info!("Hit the HLT");
-                return None;
+                return Some(0);
             },
             Opcode::IGL => {
                 error!("Illegal instruction encountered");
@@ -259,7 +259,7 @@ impl VM {
 
     // Grabs the next 16 bits (2 bytes)
     fn next_16_bits(&mut self) -> u16 {
-        let result = ((self.program[self.pc] as u16) << 8) | (self.program[self.pc + 1] as u16);
+        let result = (u16::from(self.program[self.pc]) << 8) | u16::from(self.program[self.pc + 1]);
         self.pc += 2;
         result
     }

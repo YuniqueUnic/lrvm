@@ -19,12 +19,12 @@ pub mod register_parser;
 pub mod symbols;
 
 /// Magic number that begins every bytecode file prefix. These spell out EPIE in ASCII, if you were wondering.
-pub const PIE_HEADER_PREFIX: [u8; 4] = [45, 50, 49, 45];
+pub const PIE_HEADER_PREFIX: [u8; 4] = [45, 50, 49, 45]; // Hello
 
 /// Constant that determines how long the header is. There are 60 zeros left after the prefix, for later usage if needed.
 pub const PIE_HEADER_LENGTH: usize = 64;
 
-pub fn prepend_header(mut bytes: Vec<u8>) -> Vec<u8> {
+pub fn prepend_header(mut append_bytes: Vec<u8>) -> Vec<u8> {
     let mut prepension = vec![];
     for byte in PIE_HEADER_PREFIX.into_iter() {
         prepension.push(byte);
@@ -32,7 +32,7 @@ pub fn prepend_header(mut bytes: Vec<u8>) -> Vec<u8> {
     while prepension.len() < PIE_HEADER_LENGTH {
         prepension.push(0 as u8);
     }
-    prepension.append(&mut bytes);
+    prepension.append(&mut append_bytes);
     prepension
 }
 
@@ -67,7 +67,7 @@ pub struct Assembler {
     /// The current instruction the assembler is converting to bytecode
     current_instruction: u32,
     /// Any errors we find along the way. At the end, we'll present them to the user.
-    errors: Vec<AssemblerError>,
+    pub errors: Vec<AssemblerError>,
 }
 
 impl Assembler {
@@ -349,7 +349,7 @@ impl From<&str> for AssemblerSection {
             "data" => AssemblerSection::Data {
                 starting_instruction: None,
             },
-            "code" => AssemblerSection::Data {
+            "code" => AssemblerSection::Code {
                 starting_instruction: None,
             },
             _ => AssemblerSection::Unknown,
