@@ -1,3 +1,7 @@
+pub mod command_parser;
+
+use command_parser::CommandParser;
+
 use crate::assembler::program_parser::program;
 use crate::assembler::Assembler;
 use crate::scheduler::Scheduler;
@@ -43,54 +47,61 @@ impl REPL {
                 .read_line(&mut buffer)
                 .expect("Unable to read line from user");
 
-            let buffer = buffer.trim();
+            let history_copy = buffer.clone();
 
-            self.command_buffer.push(buffer.to_string());
+            self.command_buffer.push(history_copy);
 
-            match buffer {
-                ".quit" => self.quit(),
-                ".history" => self.history(),
-                ".program" => self.program(),
-                ".registers" => self.registers(),
-                ".load_file" => {
-                    let contents = self.get_data_from_load();
-                    self.load_file(&contents);
-                },
-                ".spawn" => {
-                    let contents = self.get_data_from_load();
-                    self.spawn(&contents);
-                },
-                _ => {
-                    let parsed_program = program(buffer);
-                    if !parsed_program.is_ok() {
-                        eprintln!("Unable to parse input");
+            if buffer.starts_with("!") {
+                self.execute_command(&buffer);
+            } else {
+                let program = match program(&buffer) {
+                    Ok((_reminder, program)) => program,
+                    Err(e) => {
+                        eprintln!("Unable to parse input: {}", e);
                         continue;
-                    }
+                    },
+                };
 
-                    let (_, result) = parsed_program.unwrap();
+                self.vm
+                    .program
+                    .append(&mut program.to_bytes(&self.asm.symbols));
 
-                    let bytecode = result.to_bytes(&self.asm.symbols);
-
-                    for byte in bytecode {
-                        self.vm.add_byte(byte);
-                    }
-
-                    self.vm.run_once();
-                },
+                self.vm.run_once();
             }
         }
     }
 
-    fn quit(&mut self) {
+    fn execute_command(&mut self, input: &str) {
+        let args = CommandParser::tokenize(input);
+        match args[0] {
+            "!quit" => self.quit(&args[1..]),
+            "!history" => self.history(&args[1..]),
+            "!program" => self.program(&args[1..]),
+            "!registers" => self.registers(&args[1..]),
+            "!load_file" => {
+                let contents = self.get_data_from_load();
+                self.load_file(&args[1..], &contents);
+            },
+            "!spawn" => {
+                let contents = self.get_data_from_load();
+                self.spawn(&args[1..], &contents);
+            },
+            _ => {
+                println!("Unknown command: {:?}", args);
+            },
+        }
+    }
+
+    fn quit(&mut self, args: &[&str]) {
         println!("Farewell ! Have a great day.");
         std::process::exit(0);
     }
-    fn history(&mut self) {
+    fn history(&mut self, args: &[&str]) {
         for command in &self.command_buffer {
             println!("{}", command);
         }
     }
-    fn program(&mut self) {
+    fn program(&mut self, args: &[&str]) {
         println!("Listing instructions currently in vm's program vector!");
         for instruction in &self.vm.program {
             println!("{}", instruction);
@@ -98,13 +109,13 @@ impl REPL {
         println!("End of Program Listing");
     }
 
-    fn registers(&mut self) {
+    fn registers(&mut self, args: &[&str]) {
         println!("Listing registers and all contents:");
         println!("{:#?}", &self.vm.registers);
         println!("End of registers Listing");
     }
 
-    fn load_file(&mut self, data_from_file: &Option<String>) {
+    fn load_file(&mut self, args: &[&str], data_from_file: &Option<String>) {
         if let Some(contents) = data_from_file {
             let program = match program(&contents) {
                 Ok((_reminder, program)) => program,
@@ -119,7 +130,7 @@ impl REPL {
         }
     }
 
-    fn spawn(&mut self, data_from_file: &Option<String>) {
+    fn spawn(&mut self, args: &[&str], data_from_file: &Option<String>) {
         if let Some(contents) = data_from_file {
             match self.asm.assemble(&contents) {
                 Ok(mut assembled_program) => {
@@ -249,7 +260,7 @@ mod tests {
         };
 
         let mut repl = REPL::new();
-        repl.spawn(&contents);
+        repl.spawn(&[""], &contents);
         assert!(repl.asm.errors.is_empty());
     }
 }
