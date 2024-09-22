@@ -1,5 +1,6 @@
 pub mod command_parser;
 
+use clap::builder::Str;
 use command_parser::CommandParser;
 
 use crate::assembler::program_parser::program;
@@ -8,11 +9,11 @@ use crate::scheduler::Scheduler;
 use crate::vm::VM;
 
 use std;
-use std::fs::File;
+use std::io::Write;
 use std::io::{self, stdin};
-use std::io::{Read, Write};
 use std::num::ParseIntError;
-use std::path::Path;
+
+const COMMAND_PREFIX: char = '!';
 
 pub struct REPL {
     command_buffer: Vec<String>,
@@ -51,7 +52,7 @@ impl REPL {
 
             self.command_buffer.push(history_copy);
 
-            if buffer.starts_with("!") {
+            if buffer.starts_with(COMMAND_PREFIX) {
                 self.execute_command(&buffer);
             } else {
                 let program = match program(&buffer) {
@@ -77,13 +78,51 @@ impl REPL {
             "!quit" => self.quit(&args[1..]),
             "!history" => self.history(&args[1..]),
             "!program" => self.program(&args[1..]),
+            "!clear" => self.clear(&args[1..]),
             "!registers" => self.registers(&args[1..]),
+            "!symbols" => self.symbols(&args[1..]),
             "!load_file" => {
-                let contents = self.get_data_from_load();
+                let mut contents: Option<String> = Option::None;
+
+                match utils::aggreate_path(&args[1..]) {
+                    Some(user_input_path) => {
+                        let path = utils::is_valid_path(&user_input_path);
+                        match path {
+                            Some(valid_path) => {
+                                contents = utils::get_data_from_load(valid_path);
+                            },
+                            None => {
+                                contents = self.require_file_to_load();
+                            },
+                        }
+                    },
+                    None => {
+                        contents = self.require_file_to_load();
+                    },
+                }
+
                 self.load_file(&args[1..], &contents);
             },
             "!spawn" => {
-                let contents = self.get_data_from_load();
+                let mut contents: Option<String> = Option::None;
+
+                match utils::aggreate_path(&args[1..]) {
+                    Some(user_input_path) => {
+                        let path = utils::is_valid_path(&user_input_path);
+                        match path {
+                            Some(valid_path) => {
+                                contents = utils::get_data_from_load(valid_path);
+                            },
+                            None => {
+                                contents = self.require_file_to_load();
+                            },
+                        }
+                    },
+                    None => {
+                        contents = self.require_file_to_load();
+                    },
+                }
+
                 self.spawn(&args[1..], &contents);
             },
             _ => {
@@ -92,16 +131,16 @@ impl REPL {
         }
     }
 
-    fn quit(&mut self, args: &[&str]) {
+    fn quit(&mut self, _args: &[&str]) {
         println!("Farewell ! Have a great day.");
         std::process::exit(0);
     }
-    fn history(&mut self, args: &[&str]) {
+    fn history(&mut self, _args: &[&str]) {
         for command in &self.command_buffer {
             println!("{}", command);
         }
     }
-    fn program(&mut self, args: &[&str]) {
+    fn program(&mut self, _args: &[&str]) {
         println!("Listing instructions currently in vm's program vector!");
         for instruction in &self.vm.program {
             println!("{}", instruction);
@@ -109,13 +148,39 @@ impl REPL {
         println!("End of Program Listing");
     }
 
-    fn registers(&mut self, args: &[&str]) {
+    fn clear(&mut self, args: &[&str]) {
+        if args.len() <= 0 {
+            eprintln!("Unknown argument to clear: program/registers");
+            eprintln!("For example: !clear program or !clear regiseters");
+            return;
+        }
+
+        match args[0].to_lowercase().as_str() {
+            "program" => {
+                self.vm.program.clear();
+            },
+            "registers" => {
+                self.vm.registers.iter_mut().for_each(|i| *i = 0);
+            },
+            _ => {
+                eprintln!("Unknown argument to clear: program/registers");
+                eprintln!("For example: !clear program or !clear regiseters");
+            },
+        }
+    }
+
+    fn symbols(&mut self, _args: &[&str]) {
+        println!("Listing symbols and all contents:");
+        println!("{:#?}", &self.asm.symbols);
+        println!("End of symbols Listing");
+    }
+    fn registers(&mut self, _args: &[&str]) {
         println!("Listing registers and all contents:");
         println!("{:#?}", &self.vm.registers);
         println!("End of registers Listing");
     }
 
-    fn load_file(&mut self, args: &[&str], data_from_file: &Option<String>) {
+    fn load_file(&mut self, _args: &[&str], data_from_file: &Option<String>) {
         if let Some(contents) = data_from_file {
             let program = match program(&contents) {
                 Ok((_reminder, program)) => program,
@@ -130,7 +195,7 @@ impl REPL {
         }
     }
 
-    fn spawn(&mut self, args: &[&str], data_from_file: &Option<String>) {
+    fn spawn(&mut self, _args: &[&str], data_from_file: &Option<String>) {
         if let Some(contents) = data_from_file {
             match self.asm.assemble(&contents) {
                 Ok(mut assembled_program) => {
@@ -145,38 +210,17 @@ impl REPL {
                     }
                 },
             }
-        } else {
         }
     }
 
-    fn get_data_from_load(&mut self) -> Option<String> {
+    fn require_file_to_load(&mut self) -> Option<String> {
         print!("Please enter the path to the file you wish to load: ");
         io::stdout().flush().expect("Unable to flush stdout");
         let mut tmp = String::new();
         stdin()
             .read_line(&mut tmp)
             .expect("Unable to read line from user");
-
-        let tmp = tmp.trim();
-        let filename = Path::new(&tmp);
-
-        let mut f = match File::open(Path::new(&filename)) {
-            Ok(f) => f,
-            Err(e) => {
-                eprintln!("Unable to open file: {}", e);
-                return None;
-            },
-        };
-
-        let mut contents = String::new();
-
-        match f.read_to_string(&mut contents) {
-            Ok(_bytes_read) => Some(contents),
-            Err(e) => {
-                eprintln!("Unable to read file: {}", e);
-                None
-            },
-        }
+        utils::get_data_from_load(tmp)
     }
 
     #[allow(dead_code)]
@@ -201,11 +245,127 @@ impl REPL {
     }
 }
 
+mod utils {
+    use std::io::Read;
+    use std::path::PathBuf;
+
+    use std::fs::File;
+
+    use std::path::Path;
+
+    pub fn get_data_from_load(tmp: String) -> Option<String> {
+        let tmp = tmp.trim();
+        let filename = Path::new(&tmp);
+
+        let mut f = match File::open(Path::new(&filename)) {
+            Ok(f) => f,
+            Err(e) => {
+                eprintln!("Unable to open file: {}", e);
+                return None;
+            },
+        };
+
+        let mut contents = String::new();
+
+        match f.read_to_string(&mut contents) {
+            Ok(_bytes_read) => Some(contents),
+            Err(e) => {
+                eprintln!("Unable to read file: {}", e);
+                None
+            },
+        }
+    }
+
+    pub fn aggreate_path(args: &[&str]) -> Option<PathBuf> {
+        if args.is_empty() {
+            return None;
+        }
+
+        let mut left_single_quote = false;
+        let mut left_double_quote = false;
+
+        let mut path = PathBuf::new();
+
+        for &arg in args {
+            if !left_double_quote && !left_single_quote {
+                if arg.starts_with("\"") && arg.ends_with("\"") {
+                    path.push(&arg.trim_matches(&['\"']));
+                    left_double_quote = false;
+                    break;
+                } else if arg.starts_with("\'") && arg.ends_with("\'") {
+                    path.push(&arg.trim_matches(&['\'']));
+                    left_single_quote = false;
+                    break;
+                } else if arg.starts_with("\"") {
+                    left_double_quote = true;
+                    path.push(&arg[1..]);
+                } else if arg.starts_with("\'") {
+                    left_single_quote = true;
+                    path.push(&arg[1..]);
+                }
+            }
+
+            if left_double_quote {
+                if arg.ends_with("\"") {
+                    path.push(&arg[..arg.len() - 1]);
+                    left_double_quote = false;
+                } else {
+                    path.push(&arg);
+                }
+            } else if left_single_quote {
+                if arg.ends_with("\'") {
+                    path.push(&arg[..arg.len() - 1]);
+                    left_double_quote = true;
+                } else {
+                    path.push(&arg);
+                }
+            }
+        }
+
+        if left_double_quote || left_single_quote {
+            return None;
+        }
+
+        Some(path)
+    }
+
+    pub fn is_valid_path(path: &PathBuf) -> Option<String> {
+        if path.has_root() {
+            check_path_exists(&path)
+        } else {
+            let current_dir = match std::env::current_dir() {
+                Ok(dir) => dir,
+                Err(e) => {
+                    eprintln!("Unable to get current directory: {}", e);
+                    return None;
+                },
+            };
+
+            let abs_path = current_dir.join(path);
+            check_path_exists(&abs_path)
+        }
+    }
+
+    pub fn check_path_exists(path: &Path) -> Option<String> {
+        if Path::exists(path) {
+            match path.to_str() {
+                Some(valid_str) => Some(String::from(valid_str)),
+                None => {
+                    eprintln!("Invalid UTF-8 in path: {:?}", path);
+                    None
+                },
+            }
+        } else {
+            None
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::{fs::OpenOptions, path::PathBuf};
 
-    use io::Error;
+    use io::{Error, Read};
 
     use super::*;
 
@@ -251,6 +411,25 @@ mod tests {
     }
 
     #[test]
+    fn test_load_file() {
+        let test_file = get_absolute_path("docs/examples/counting_loop.iasm");
+
+        let contents = match read_file_to_string(test_file.to_str().unwrap()) {
+            Ok(content) => Some(content),
+            Err(err) => panic!("Unable to read file:{}", err),
+        };
+
+        let mut repl = REPL::new();
+        repl.load_file(&[""], &contents);
+        assert!(repl.asm.errors.is_empty());
+
+        let expect = vec![
+            0, 0, 0, 100, 0, 1, 0, 1, 0, 2, 0, 0, 18, 2, 0, 0, 10, 0, 2, 0, 20, 0, 0, 0, 5, 0, 0, 0,
+        ];
+        assert_eq!(expect, repl.vm.program);
+    }
+
+    #[test]
     fn test_spawn() {
         let test_file = get_absolute_path("docs/examples/hlt.iasm");
 
@@ -262,5 +441,13 @@ mod tests {
         let mut repl = REPL::new();
         repl.spawn(&[""], &contents);
         assert!(repl.asm.errors.is_empty());
+
+        let expect = vec![
+            45, 50, 49, 45, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0,
+        ];
+
+        assert_eq!(expect, repl.vm.program);
     }
 }
