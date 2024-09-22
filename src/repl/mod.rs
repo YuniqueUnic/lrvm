@@ -1,6 +1,5 @@
 pub mod command_parser;
 
-use clap::builder::Str;
 use command_parser::CommandParser;
 
 use crate::assembler::program_parser::program;
