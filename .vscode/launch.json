@@ -20,7 +20,7 @@
                     "kind": "bin"
                 }
             },
-            "args": ["print","NIHAO"],
+            "args": ["-r"],
             "cwd": "${workspaceFolder}"
         },
         {

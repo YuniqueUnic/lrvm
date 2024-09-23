@@ -17,7 +17,7 @@ pub struct CLI {
     pub enable_remote_access: bool,
 
     /// Which address lrvm should listen for remote connections on. Defaults to "127.0.0.1".
-    #[arg(short('h'), long("bind-host"))]
+    #[arg(short('o'), long("bind-host"))]
     pub listen_host: Option<String>,
 
     /// Which port lrvm should listen for remote connections on. Defaults to 2244.

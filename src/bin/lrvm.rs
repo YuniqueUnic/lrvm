@@ -28,8 +28,8 @@ fn main() {
     }
 
     if cli.enable_remote_access {
-        let host = &cli.listen_host.unwrap_or("127.0.0.1".into());
-        let port = &cli.listen_port.unwrap_or("2244".into());
+        let host = cli.listen_host.unwrap_or("127.0.0.1".into());
+        let port = cli.listen_port.unwrap_or("65201".into());
         start_remote_server(host, port);
     }
 
@@ -58,11 +58,11 @@ fn main() {
     }
 }
 
-fn start_remote_server(listen_host: &str, listen_port: &str) {
-    // let _t = std::thread::spawn(move ||{
-    //     let mut sh =lrvm::remote
-    // });
-    todo!()
+fn start_remote_server(listen_host: String, listen_port: String) {
+    let _t = std::thread::spawn(move || {
+        let mut sh = lrvm::remote::server::Server::new(listen_host, listen_port);
+        sh.listen();
+    });
 }
 
 fn read_file(filename: &str) -> String {

@@ -29,7 +29,7 @@ impl Client {
         let rx = self.repl.rx_pipe.take();
         // TODO: Make this safer on unwrap
         let mut writer = self.raw_stream.try_clone().unwrap();
-        let t = thread::spawn(move || {
+        let _t = thread::spawn(move || {
             let channel = rx.unwrap();
             loop {
                 match channel.recv() {
