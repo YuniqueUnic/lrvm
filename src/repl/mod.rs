@@ -332,6 +332,7 @@ mod utils {
     use std::path::Path;
 
     pub fn get_data_from_load(tmp: String) -> Option<String> {
+        // TODO: Change to the Result<O,E> return type so that msgs can be send to remote
         let tmp = tmp.trim();
         let filename = Path::new(&tmp);
 
