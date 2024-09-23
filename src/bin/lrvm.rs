@@ -1,14 +1,11 @@
 use std::{fs::File, io::Read, path::Path};
 
 use clap::Parser;
-use cli::CLI;
-
-pub mod assembler;
-pub mod cli;
-pub mod instruction;
-pub mod repl;
-pub mod scheduler;
-pub mod vm;
+use lrvm::{
+    assembler,
+    cli::{self, CLI},
+    repl, vm,
+};
 
 extern crate nom;
 

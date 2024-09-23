@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["unic"]
 description = "A simple vm implementated by rust for lrvm language"
 categories = ["virtual machine"]
-license = "MIT OR Apache-2.0"
+license = "MIT"
 readme = "./README.md"
 edition = "2021"
 
@@ -17,3 +17,13 @@ env_logger = "0.11.5"
 log = "0.4.22"
 nom = "7.1.3"
 uuid = { version = "1.10.0", features = ["v4"] }
+
+[[bin]]
+name = "lrvm"
+
+[dev-dependencies]
+criterion = "0.5.1"
+
+[[bench]]
+name = "lrvmbench"
+harness = false

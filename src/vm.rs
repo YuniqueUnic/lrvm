@@ -4,6 +4,14 @@ use uuid::Uuid;
 
 use crate::{assembler::PIE_HEADER_PREFIX, instruction::Opcode};
 
+pub fn get_test_vm() -> VM {
+    let mut test_vm = VM::new();
+    test_vm.equal_flag = false;
+    test_vm.registers[0] = 5;
+    test_vm.registers[1] = 10;
+    test_vm
+}
+
 #[derive(Debug, Clone)]
 enum VMEventType {
     Start,
@@ -272,17 +280,9 @@ mod tests {
 
     use log::debug;
 
-    use crate::assembler::prepend_header;
+    use crate::{assembler::prepend_header, vm::get_test_vm};
 
     use super::VM;
-
-    pub fn get_test_vm() -> VM {
-        let mut test_vm = VM::new();
-        test_vm.equal_flag = false;
-        test_vm.registers[0] = 5;
-        test_vm.registers[1] = 10;
-        test_vm
-    }
 
     #[test]
     fn test_create_vm() {
