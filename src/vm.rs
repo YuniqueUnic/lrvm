@@ -1,3 +1,6 @@
+use std::io::Cursor;
+
+use byteorder::{LittleEndian, ReadBytesExt};
 use chrono::{DateTime, Utc};
 use log::{debug, error, info};
 use uuid::Uuid;
@@ -80,7 +83,7 @@ impl VM {
             return self.events.clone();
         }
         // If the header is valid, we need to change the PC to be at bit 65.
-        self.pc = 64;
+        self.pc = 64 + self.get_starting_offset();
 
         let mut is_done = None;
         while is_done.is_none() {
@@ -250,6 +253,13 @@ impl VM {
             },
         }
         None
+    }
+
+    fn get_starting_offset(&self) -> usize {
+        // We only want to read the slice containing the 4 bytes right after the magic number
+        let mut rdr = Cursor::new(&self.program[4..8]);
+        // Read it as a u32, cast as a usize (since the VM's PC attribute is a usize), and return it
+        rdr.read_u32::<LittleEndian>().unwrap() as usize
     }
 
     fn decode_opcode(&mut self) -> Opcode {

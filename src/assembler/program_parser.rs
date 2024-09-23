@@ -74,14 +74,14 @@ mod tests {
         let (_, program_res) = result.unwrap();
         let bytecode = program_res.to_bytes(&symbols);
         assert_eq!(bytecode.len(), 4);
-        println!("load $0 #100  ==To_Bytes==> {:?}", bytecode);
+        // println!("load $0 #100  ==To_Bytes==> {:?}", bytecode);
 
         let result = program("load $0 #1000  \n   ");
         assert_eq!(result.is_ok(), true);
         let (_, program_res) = result.unwrap();
         let bytecode = program_res.to_bytes(&symbols);
         assert_eq!(bytecode.len(), 4);
-        println!("load $0 #1000 ==To_Bytes==> {:?}", bytecode);
+        // println!("load $0 #1000 ==To_Bytes==> {:?}", bytecode);
     }
 
     #[test]

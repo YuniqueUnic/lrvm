@@ -23,8 +23,10 @@ use nom::{
 ///
 /// # 例子
 /// ```
+/// use lrvm::assembler::{Token,opcode_parsers::opcode};
+/// use lrvm::instruction::Opcode;
 /// let result = opcode("add");
-/// assert_eq!(result, Ok((0, Token::Op { code: Some(OpCode::Add) })));
+/// assert_eq!(result, Ok(("", Token::Op { code: Opcode::ADD })));
 /// ```
 pub fn opcode(input: &str) -> IResult<&str, Token> {
     context(

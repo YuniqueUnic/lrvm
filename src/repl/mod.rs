@@ -81,7 +81,7 @@ impl REPL {
             "!registers" => self.registers(&args[1..]),
             "!symbols" => self.symbols(&args[1..]),
             "!load_file" => {
-                let mut contents: Option<String> = Option::None;
+                let contents;
 
                 match utils::aggreate_path(&args[1..]) {
                     Some(user_input_path) => {
@@ -103,7 +103,7 @@ impl REPL {
                 self.load_file(&args[1..], &contents);
             },
             "!spawn" => {
-                let mut contents: Option<String> = Option::None;
+                let contents;
 
                 match utils::aggreate_path(&args[1..]) {
                     Some(user_input_path) => {
@@ -198,9 +198,9 @@ impl REPL {
         if let Some(contents) = data_from_file {
             match self.asm.assemble(&contents) {
                 Ok(mut assembled_program) => {
-                    println!("Sending assembled program to VM");
+                    // println!("Sending assembled program to VM");
                     self.vm.program.append(&mut assembled_program);
-                    println!("{:#?}", self.vm.program);
+                    // println!("{:#?}", self.vm.program);
                     self.scheduler.get_thread(self.vm.clone());
                 },
                 Err(errors) => {

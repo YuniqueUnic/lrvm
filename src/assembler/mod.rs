@@ -1,6 +1,7 @@
 use std::vec;
 
 use assembler_errors::AssemblerError;
+use byteorder::{LittleEndian, WriteBytesExt};
 use instruction_parsers::AssemblerInstruction;
 use log::{debug, error, warn};
 use program_parser::{program, Program};
@@ -97,8 +98,8 @@ impl Assembler {
                     _reminder
                 ); // Unlike assert, debug_assert! statements are only enabled in non optimized builds by default.
 
-                //First get the header so we can smush it into the bytecode letter
-                let mut assembled_program = self.write_pie_header();
+                // //First get the header so we can smush it into the bytecode letter
+                // let mut assembled_program = self.write_pie_header();
 
                 // Start processing the AssembledInstructions. This is the first pass of our two-pass assembler.
                 // We pass a read-only reference down to another function.
@@ -120,6 +121,9 @@ impl Assembler {
                 // Run the second pass, which translates opcodes and associated operands into the bytecode
                 let mut body = self.process_second_phase(&program);
 
+                // Get the header so we can smush it into the bytecode letter
+                let mut assembled_program = self.write_pie_header();
+
                 // Merge the header with the populated body vector
                 assembled_program.append(&mut body);
                 Ok(assembled_program)
@@ -135,16 +139,26 @@ impl Assembler {
     }
 
     fn write_pie_header(&self) -> Vec<u8> {
-        // let mut header = vec![];
-        // for byte in PIE_HEADER_PREFIX.into_iter() {
-        //     header.push(byte);
-        // }
+        let mut header = vec![];
+        for byte in PIE_HEADER_PREFIX.into_iter() {
+            header.push(byte);
+        }
 
-        // while header.len() <= PIE_HEADER_LENGTH {
-        //     header.push(0 as u8);
-        // }
-        // header
-        prepend_header(vec![])
+        // Now we need to calculate the starting offset so that the VM knows where the RO section ends
+
+        //First we declare an empty vector for byteorder to write to
+        let mut wtr: Vec<u8> = vec![];
+
+        wtr.write_u32::<LittleEndian>(self.ro.len() as u32).unwrap();
+
+        // Append those 4 bytes to the header directly after the first four bytes
+        header.append(&mut wtr);
+
+        // Now pad the rest of the bytecode header
+        while header.len() < PIE_HEADER_LENGTH {
+            header.push(0 as u8);
+        }
+        header
     }
 
     /// The first phase extracts all the labels and builds the symbol table
@@ -255,7 +269,6 @@ impl Assembler {
                     self.errors.push(AssemblerError::UnknownDirectiveFound {
                         directive: directive_name.clone(),
                     });
-                    return;
                 },
             }
         } else {
@@ -436,5 +449,17 @@ mod tests {
         let (_, p) = result.unwrap();
         asm.process_first_phase(&p);
         assert_eq!(asm.errors.len(), 0);
+    }
+
+    #[test]
+    /// Simple test of data that goes into the read only section
+    fn test_code_start_offset_written() {
+        let mut asm = Assembler::new();
+        let test_string = ".data\ntest1: .asciiz 'Hello'\n.code\nload $0 #100\nload $1 #1\nload $2 #0\ntest: inc $0\nneq $0 $2\njmpe @test\nhlt";
+        let program = asm.assemble(test_string);
+        assert_eq!(program.is_ok(), true);
+
+        let program = program.unwrap();
+        assert_eq!(program[4], 6);
     }
 }
