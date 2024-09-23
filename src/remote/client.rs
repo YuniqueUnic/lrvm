@@ -50,14 +50,14 @@ impl Client {
 
     pub fn run(&mut self) {
         self.recv_loop();
-        let mut buf = String::new();
+        // let mut buf = String::new();  // remote msg will be accumulated, and only the top first msg will be handled
         let banner = format!("{}\n{}", repl::REMOTE_BANNER, repl::PROMPT);
         self.w(&banner);
         loop {
+            let mut buf = String::new();
             match self.reader.read_line(&mut buf) {
                 Ok(_) => {
-                    buf.trim_end();
-                    self.repl.run_single(&buf);
+                    self.repl.run_single(&buf.trim_end());
                 },
                 Err(e) => {
                     eprintln!("Error receiving: {:#?}", e);

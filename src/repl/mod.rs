@@ -78,6 +78,7 @@ impl REPL {
                     let mut bytes = p.to_bytes(&self.asm.symbols);
                     self.vm.program.append(&mut bytes);
                     self.vm.run_once();
+                    self.send_prompt();
                     None
                 },
                 None => None,
@@ -86,7 +87,7 @@ impl REPL {
     }
 
     pub fn run(&mut self) {
-        println!("{}", REMOTE_BANNER);
+        self.send_message(REMOTE_BANNER);
         loop {
             let mut buffer = String::new();
 
@@ -109,7 +110,8 @@ impl REPL {
                 let program = match program(&buffer) {
                     Ok((_reminder, program)) => program,
                     Err(e) => {
-                        eprintln!("Unable to parse input: {}", e);
+                        self.send_message(&format!("Unable to parse input: {:?}", e));
+                        self.send_prompt();
                         continue;
                     },
                 };
@@ -177,26 +179,33 @@ impl REPL {
                 self.spawn(&args[1..], &contents);
             },
             _ => {
-                println!("Unknown command: {:?}", args);
+                self.send_message(&format!("Invalid command!: {}", args[0]));
+                self.send_prompt();
             },
         }
     }
 
     fn quit(&mut self, _args: &[&str]) {
-        println!("Farewell ! Have a great day.");
+        self.send_message("Farewell! Have a great day!");
         std::process::exit(0);
     }
     fn history(&mut self, _args: &[&str]) {
+        let mut results = vec![];
         for command in &self.command_buffer {
-            println!("{}", command);
+            results.push(command.clone());
         }
+        self.send_message(&format!("{:#?}", results));
+        self.send_prompt();
     }
     fn program(&mut self, _args: &[&str]) {
-        println!("Listing instructions currently in vm's program vector!");
+        self.send_message("Listing instructions currently in VM's program vector:");
+        let mut results = vec![];
         for instruction in &self.vm.program {
-            println!("{}", instruction);
+            results.push(instruction.clone())
         }
-        println!("End of Program Listing");
+        self.send_message(&format!("{:#?}", results));
+        self.send_message(&format!("End of Program Listing"));
+        self.send_prompt();
     }
 
     fn clear(&mut self, args: &[&str]) {
@@ -221,14 +230,24 @@ impl REPL {
     }
 
     fn symbols(&mut self, _args: &[&str]) {
-        println!("Listing symbols and all contents:");
-        println!("{:#?}", &self.asm.symbols);
-        println!("End of symbols Listing");
+        let mut results = vec![];
+        for symbol in &self.asm.symbols.symbols {
+            results.push(symbol.clone());
+        }
+        self.send_message("Listing symbols table:");
+        self.send_message(&format!("{:#?}", results));
+        self.send_message("End of Symbols Listing");
+        self.send_prompt();
     }
     fn registers(&mut self, _args: &[&str]) {
-        println!("Listing registers and all contents:");
-        println!("{:#?}", &self.vm.registers);
-        println!("End of registers Listing");
+        self.send_message("Listing registers and all contents:");
+        let mut results = vec![];
+        for register in &self.vm.registers {
+            results.push(register.clone());
+        }
+        self.send_message(&format!("{:#?}", results));
+        self.send_message("End of Register Listing");
+        self.send_prompt();
     }
 
     fn load_file(&mut self, _args: &[&str], data_from_file: &Option<String>) {
@@ -236,7 +255,8 @@ impl REPL {
             let program = match program(&contents) {
                 Ok((_reminder, program)) => program,
                 Err(e) => {
-                    eprintln!("Unable to parse input: {:?}", e);
+                    self.send_message(&format!("Unable to parse input: {:?}", e));
+                    self.send_prompt();
                     return;
                 },
             };
@@ -257,7 +277,8 @@ impl REPL {
                 },
                 Err(errors) => {
                     for error in errors {
-                        println!("Unable to parse input: {}", error);
+                        self.send_message(&format!("Unable to parse input: {:?}", error));
+                        self.send_prompt();
                     }
                 },
             }
@@ -265,12 +286,18 @@ impl REPL {
     }
 
     fn require_file_to_load(&mut self) -> Option<String> {
-        print!("Please enter the path to the file you wish to load: ");
-        io::stdout().flush().expect("Unable to flush stdout");
+        let stdin = io::stdin();
+        self.send_message("Please enter the path to the file you wish to load: ");
         let mut tmp = String::new();
-        stdin()
+
+        // io::stdout().flush().expect("Unable to flush stdout");
+
+        stdin
             .read_line(&mut tmp)
             .expect("Unable to read line from user");
+
+        self.send_message("Attempting to load program from file...");
+
         utils::get_data_from_load(tmp)
     }
 
