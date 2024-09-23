@@ -49,6 +49,8 @@ pub struct VM {
     id: Uuid,
 
     events: Vec<VMEvent>,
+
+    pub logical_cores: usize,
 }
 
 impl VM {
@@ -63,6 +65,7 @@ impl VM {
             equal_flag: false,
             id: Uuid::new_v4(),
             events: vec![],
+            logical_cores: num_cpus::get(),
         }
     }
 

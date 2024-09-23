@@ -11,8 +11,12 @@ use std;
 use std::io::Write;
 use std::io::{self, stdin};
 use std::num::ParseIntError;
+use std::sync::mpsc::{self, Receiver, Sender};
 
 const COMMAND_PREFIX: char = '!';
+
+pub static REMOTE_BANNER: &'static str = "Welcome to lrvm! Let's be productive.";
+pub static PROMPT: &'static str = ">>> ";
 
 pub struct REPL {
     command_buffer: Vec<String>,
@@ -20,27 +24,75 @@ pub struct REPL {
     vm: VM,
     asm: Assembler,
     scheduler: Scheduler,
+    pub tx_pipe: Option<Box<Sender<String>>>,
+    pub rx_pipe: Option<Box<Receiver<String>>>,
 }
 
 impl REPL {
     /// Creates and returns a new assembly repl
     pub fn new() -> REPL {
+        let (tx, rx): (Sender<String>, Receiver<String>) = mpsc::channel();
         REPL {
             command_buffer: vec![],
             vm: VM::new(),
             asm: Assembler::new(),
             scheduler: Scheduler::new(),
+            tx_pipe: { Some(Box::new(tx)) },
+            rx_pipe: { Some(Box::new(rx)) },
+        }
+    }
+
+    pub fn send_prompt(&mut self) {
+        match &self.tx_pipe {
+            Some(pipe) => {
+                let _ = pipe.send(format!("{}", PROMPT));
+            },
+            None => {},
+        }
+    }
+
+    pub fn send_message(&mut self, msg: &str) {
+        match &self.tx_pipe {
+            Some(pipe) => {
+                let _ = pipe.send(format!("{}\n", msg));
+            },
+            None => {},
+        }
+    }
+
+    pub fn run_single(&mut self, buffer: &str) -> Option<String> {
+        if buffer.starts_with(COMMAND_PREFIX) {
+            self.execute_command(&buffer);
+            None
+        } else {
+            let program = match program(&buffer) {
+                Ok((_reminder, program)) => Some(program),
+                Err(e) => {
+                    self.send_message(&format!("Unable to parse input: {:?}", e));
+                    self.send_prompt();
+                    None
+                },
+            };
+            match program {
+                Some(p) => {
+                    let mut bytes = p.to_bytes(&self.asm.symbols);
+                    self.vm.program.append(&mut bytes);
+                    self.vm.run_once();
+                    None
+                },
+                None => None,
+            }
         }
     }
 
     pub fn run(&mut self) {
-        println!("Welcome to lrvm! Let's be productive.");
+        println!("{}", REMOTE_BANNER);
         loop {
             let mut buffer = String::new();
 
             let stdin = io::stdin();
 
-            print!(">>> ");
+            print!("{}", PROMPT);
             io::stdout().flush().expect("unable to flush stdout");
 
             stdin

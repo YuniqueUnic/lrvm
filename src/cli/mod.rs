@@ -5,11 +5,27 @@ use clap_derive::{Args, Parser, Subcommand};
 #[command(propagate_version = true)]
 pub struct CLI {
     /// Path to the .iasm or .ir file to run
-    #[arg(short, long)]
+    #[arg(short('f'), long)]
     pub file: Option<String>,
 
+    /// Number of OS threads the VM will utilize
+    #[arg(short('t'), long)]
+    pub threads: Option<usize>,
+
+    /// Enables the remote server component of lrvm VM
+    #[arg(short('r'), long)]
+    pub enable_remote_access: bool,
+
+    /// Which address lrvm should listen for remote connections on. Defaults to "127.0.0.1".
+    #[arg(short('h'), long("bind-host"))]
+    pub listen_host: Option<String>,
+
+    /// Which port lrvm should listen for remote connections on. Defaults to 2244.
+    #[arg(short('p'), long("bind-port"))]
+    pub listen_port: Option<String>,
+
     /// test the cli args
-    #[arg(short, long)]
+    #[arg(long)]
     pub test: bool,
 
     /// The command to run
