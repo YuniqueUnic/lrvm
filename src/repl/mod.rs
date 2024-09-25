@@ -72,7 +72,7 @@ impl REPL {
             let program = match program(&buffer) {
                 Ok((_reminder, program)) => Some(program),
                 Err(e) => {
-                    self.send_message(&format!("Unable to parse input: {:?}", e));
+                    self.send_message(&format!("[Error]: Unable to parse input: {:?}", e));
                     self.send_prompt();
                     None
                 },
@@ -91,22 +91,7 @@ impl REPL {
     }
 
     pub fn run(&mut self) {
-        let recv = self.rx_pipe.take();
-        std::thread::spawn(move || loop {
-            match recv {
-                Some(ref pipe) => match pipe.recv() {
-                    Ok(msg) => {
-                        print!("{}", msg);
-                        io::stdout().flush().expect("unable to flush stdout");
-                    },
-                    Err(e) => {
-                        eprint!("{:?}", e);
-                        io::stdout().flush().expect("unable to flush stdout");
-                    },
-                },
-                None => {},
-            }
-        });
+        self.write_local_loop();
 
         self.send_message(REMOTE_BANNER);
         self.send_prompt();
@@ -143,6 +128,30 @@ impl REPL {
                 self.vm.run_once();
             }
         }
+    }
+
+    fn write_local_loop(&mut self) {
+        let recv = self.rx_pipe.take();
+        std::thread::spawn(move || loop {
+            match recv {
+                Some(ref pipe) => match pipe.recv() {
+                    Ok(msg) => {
+                        io::stdout()
+                            .write(msg.as_bytes())
+                            .expect("unable to write stdout");
+                        io::stdout().flush().expect("unable to flush stdout");
+                    },
+                    Err(e) => {
+                        let error = format!("Error: {:#?}", e);
+                        io::stderr()
+                            .write(error.as_bytes())
+                            .expect("unable to write stdout");
+                        io::stdout().flush().expect("unable to flush stdout");
+                    },
+                },
+                None => {},
+            }
+        });
     }
 
     fn execute_command(&mut self, input: &str) {
@@ -230,8 +239,8 @@ impl REPL {
 
     fn clear(&mut self, args: &[&str]) {
         if args.len() <= 0 {
-            self.send_message("Unknown argument to clear: program/registers");
-            self.send_message("For example: !clear program or !clear regiseters");
+            self.send_message("[Error]: Unknown argument to clear: program/registers");
+            self.send_message("[Error]: For example: !clear program or !clear regiseters");
             self.send_prompt();
             return;
         }
@@ -244,8 +253,8 @@ impl REPL {
                 self.vm.registers.iter_mut().for_each(|i| *i = 0);
             },
             _ => {
-                self.send_message("Unknown argument to clear: program/registers");
-                self.send_message("For example: !clear program or !clear regiseters");
+                self.send_message("[Error]: Unknown argument to clear: program/registers");
+                self.send_message("[Error]: For example: !clear program or !clear regiseters");
             },
         }
         self.send_prompt();
@@ -277,7 +286,7 @@ impl REPL {
             let program = match program(&contents) {
                 Ok((_reminder, program)) => program,
                 Err(e) => {
-                    self.send_message(&format!("Unable to parse input: {:?}", e));
+                    self.send_message(&format!("[Error]: Unable to parse input: {:?}", e));
                     self.send_prompt();
                     return;
                 },
@@ -316,7 +325,7 @@ impl REPL {
 
         stdin
             .read_line(&mut tmp)
-            .expect("Unable to read line from user");
+            .expect("[Error]: Unable to read line from user");
 
         self.send_message("Attempting to load program from file...");
 
