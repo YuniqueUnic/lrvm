@@ -27,16 +27,16 @@ fn main() {
         }
     }
 
+    let num_threads = match &cli.threads {
+        Some(num) => *num,
+        None => num_cpus::get(),
+    };
+
     if cli.enable_remote_access {
         let host = cli.listen_host.unwrap_or("127.0.0.1".into());
         let port = cli.listen_port.unwrap_or("65201".into());
         start_remote_server(host, port);
     }
-
-    let num_threads = match &cli.threads {
-        Some(num) => *num,
-        None => num_cpus::get(),
-    };
 
     if let Some(filename) = &cli.file {
         let program = read_file(&filename);

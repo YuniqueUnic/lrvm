@@ -47,7 +47,9 @@ impl REPL {
             Some(pipe) => {
                 let _ = pipe.send(format!("{}", PROMPT));
             },
-            None => {},
+            None => {
+                println!("{}", PROMPT);
+            },
         }
     }
 
@@ -56,7 +58,9 @@ impl REPL {
             Some(pipe) => {
                 let _ = pipe.send(format!("{}\n", msg));
             },
-            None => {},
+            None => {
+                println!("{}", msg);
+            },
         }
     }
 
@@ -87,20 +91,36 @@ impl REPL {
     }
 
     pub fn run(&mut self) {
+        let recv = self.rx_pipe.take();
+        std::thread::spawn(move || loop {
+            match recv {
+                Some(ref pipe) => match pipe.recv() {
+                    Ok(msg) => {
+                        print!("{}", msg);
+                        io::stdout().flush().expect("unable to flush stdout");
+                    },
+                    Err(e) => {
+                        eprint!("{:?}", e);
+                        io::stdout().flush().expect("unable to flush stdout");
+                    },
+                },
+                None => {},
+            }
+        });
+
         self.send_message(REMOTE_BANNER);
+        self.send_prompt();
+
         loop {
             let mut buffer = String::new();
 
             let stdin = io::stdin();
 
-            print!("{}", PROMPT);
-            io::stdout().flush().expect("unable to flush stdout");
-
             stdin
                 .read_line(&mut buffer)
                 .expect("Unable to read line from user");
 
-            let history_copy = buffer.clone();
+            let history_copy = String::from(buffer.trim());
 
             self.command_buffer.push(history_copy);
 
@@ -210,8 +230,9 @@ impl REPL {
 
     fn clear(&mut self, args: &[&str]) {
         if args.len() <= 0 {
-            eprintln!("Unknown argument to clear: program/registers");
-            eprintln!("For example: !clear program or !clear regiseters");
+            self.send_message("Unknown argument to clear: program/registers");
+            self.send_message("For example: !clear program or !clear regiseters");
+            self.send_prompt();
             return;
         }
 
@@ -223,10 +244,11 @@ impl REPL {
                 self.vm.registers.iter_mut().for_each(|i| *i = 0);
             },
             _ => {
-                eprintln!("Unknown argument to clear: program/registers");
-                eprintln!("For example: !clear program or !clear regiseters");
+                self.send_message("Unknown argument to clear: program/registers");
+                self.send_message("For example: !clear program or !clear regiseters");
             },
         }
+        self.send_prompt();
     }
 
     fn symbols(&mut self, _args: &[&str]) {
