@@ -7,19 +7,62 @@ use crate::assembler::Assembler;
 use crate::scheduler::Scheduler;
 use crate::vm::VM;
 
-use std;
-use std::io::Write;
 use std::io::{self, stdin};
+use std::io::{Stdin, Write};
 use std::num::ParseIntError;
 use std::sync::mpsc::{self, Receiver, Sender};
+use std::{self, vec};
 
 const COMMAND_PREFIX: char = '!';
 
 pub static REMOTE_BANNER: &'static str = "Welcome to lrvm! Let's be productive.";
 pub static PROMPT: &'static str = ">>> ";
 
-pub struct REPL {
+#[derive(Debug, Default)]
+pub struct CommandManager {
     command_buffer: Vec<String>,
+    offset: usize,
+}
+
+impl CommandManager {
+    pub fn new() -> Self {
+        CommandManager {
+            command_buffer: vec![],
+            offset: 0,
+        }
+    }
+
+    pub fn push(&mut self, command: String) {
+        self.command_buffer.push(command);
+        self.offset += 1;
+    }
+
+    pub fn last_command(&mut self) -> String {
+        if self.offset == 0 {
+            self.currnet_command()
+        } else {
+            self.offset -= 1;
+            self.currnet_command()
+        }
+    }
+
+    pub fn currnet_command(&self) -> String {
+        self.command_buffer[self.offset - 1].clone()
+    }
+
+    pub fn next_command(&mut self) -> String {
+        self.offset += 1;
+        self.currnet_command()
+    }
+
+    pub fn clear_all(&mut self) {
+        self.command_buffer = vec![];
+        self.offset = 0;
+    }
+}
+
+pub struct REPL {
+    command_manager: CommandManager,
     // the VM the REPL will use to execute code
     vm: VM,
     asm: Assembler,
@@ -33,7 +76,7 @@ impl REPL {
     pub fn new() -> REPL {
         let (tx, rx): (Sender<String>, Receiver<String>) = mpsc::channel();
         REPL {
-            command_buffer: vec![],
+            command_manager: CommandManager::new(),
             vm: VM::new(),
             asm: Assembler::new(),
             scheduler: Scheduler::new(),
@@ -103,11 +146,11 @@ impl REPL {
 
             stdin
                 .read_line(&mut buffer)
-                .expect("Unable to read line from user");
+                .expect("[Error]: Unable to read line from user");
 
             let history_copy = String::from(buffer.trim());
 
-            self.command_buffer.push(history_copy);
+            self.command_manager.push(history_copy);
 
             if buffer.starts_with(COMMAND_PREFIX) {
                 self.execute_command(&buffer);
@@ -126,6 +169,7 @@ impl REPL {
                     .append(&mut program.to_bytes(&self.asm.symbols));
 
                 self.vm.run_once();
+                self.send_prompt();
             }
         }
     }
@@ -220,8 +264,8 @@ impl REPL {
     }
     fn history(&mut self, _args: &[&str]) {
         let mut results = vec![];
-        for command in &self.command_buffer {
-            results.push(command.clone());
+        for command in &self.command_manager.command_buffer {
+            results.push(command);
         }
         self.send_message(&format!("{:#?}", results));
         self.send_prompt();
@@ -251,6 +295,9 @@ impl REPL {
             },
             "registers" => {
                 self.vm.registers.iter_mut().for_each(|i| *i = 0);
+            },
+            "history" => {
+                self.command_manager.clear_all();
             },
             _ => {
                 self.send_message("[Error]: Unknown argument to clear: program/registers");

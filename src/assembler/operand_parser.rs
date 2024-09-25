@@ -1,12 +1,14 @@
+use core::num;
+
 use crate::assembler::Token;
 
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_while},
-    character::complete::{digit1, line_ending, multispace0},
-    combinator::{eof, map_res},
+    character::complete::{char, digit1, line_ending, multispace0},
+    combinator::{eof, map_res, opt},
     error::context,
-    sequence::{delimited, preceded, terminated},
+    sequence::{delimited, preceded, terminated, tuple},
     IResult,
 };
 
@@ -29,15 +31,58 @@ fn integer_operand(input: &str) -> IResult<&str, Token> {
         // Skip any leading spaces
         preceded(
             multispace0, // skip spaces first
-            // Skip the '#' and read at least one digit
-            map_res(
-                preceded(tag("#"), digit1), // skip the # first
-                |reg_num: &str| {
-                    // Convert the string representation of the number to an i32 and create a Token::IntegerOperand
-                    Ok::<Token, &str>(Token::IntegerOperand {
-                        value: reg_num.parse::<i32>().unwrap(),
-                    })
-                },
+            terminated(
+                // Skip the '#' and read at least one digit
+                map_res(
+                    preceded(tag("#"), digit1), // skip the # first
+                    |reg_num: &str| {
+                        // Convert the string representation of the number to an i32 and create a Token::IntegerOperand
+                        Ok::<Token, &str>(Token::IntegerOperand {
+                            value: reg_num.parse::<i32>().unwrap(),
+                        })
+                    },
+                ),
+                alt((multispace0, line_ending, eof)),
+            ),
+        ),
+    )(input)
+}
+
+fn float_operand(input: &str) -> IResult<&str, Token> {
+    context(
+        "float_operand",
+        // Skip any leading spaces
+        preceded(
+            multispace0, // skip spaces first
+            terminated(
+                // Skip the '#' and read at least one digit
+                map_res(
+                    preceded(tag("#"), tuple((opt(char('-')), digit1, char('.'), digit1))), // skip the # first
+                    |(sign, left, dot, right)| {
+                        let mut num_str = String::from(left);
+                        num_str.push(dot);
+                        num_str.push_str(right);
+
+                        let converted = match num_str.parse::<f64>() {
+                            Ok(n) => n,
+                            Err(e) => {
+                                eprintln!("Failed to parse float: {}", e);
+                                return Err(input);
+                            },
+                        };
+                        let value = if sign.is_some() {
+                            -converted
+                        } else {
+                            converted
+                        };
+
+                        // Convert the string representation of the number to an i32 and create a Token::IntegerOperand
+                        Ok::<Token, &str>(Token::Factor {
+                            value: Box::new(Token::Float { value }),
+                        })
+                    },
+                ),
+                alt((multispace0, line_ending, eof)),
             ),
         ),
     )(input)
@@ -97,6 +142,7 @@ pub fn operand(input: &str) -> IResult<&str, Token> {
         "operand",
         alt((
             integer_operand,
+            float_operand,
             label_usage,
             // label_declaration,
             register,
@@ -109,7 +155,9 @@ pub fn operand(input: &str) -> IResult<&str, Token> {
 mod tests {
     use crate::assembler::Token;
 
-    use super::{integer_operand, ir_string, ir_string_double_quota, ir_string_single_quota};
+    use super::{
+        float_operand, integer_operand, ir_string, ir_string_double_quota, ir_string_single_quota,
+    };
 
     #[test]
     fn test_parse_register() {
@@ -274,5 +322,12 @@ mod tests {
             "Token:{:?}",
             token
         );
+    }
+
+    #[test]
+    fn test_parse_float_operand() {
+        let _ = vec!["#100.3", "#-100.3", "#1.0", "#0.0"].iter().map(|i| {
+            assert_eq!(float_operand(i).is_ok(), true);
+        });
     }
 }

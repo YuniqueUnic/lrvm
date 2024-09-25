@@ -30,7 +30,10 @@ pub fn prepend_header(mut append_bytes: Vec<u8>) -> Vec<u8> {
     for byte in PIE_HEADER_PREFIX.into_iter() {
         prepension.push(byte);
     }
-    while prepension.len() < PIE_HEADER_LENGTH {
+
+    // The 4 is added here to allow for the 4 bytes that
+    // tell the VM where the executable code starts
+    while prepension.len() < PIE_HEADER_LENGTH + 4 {
         prepension.push(0 as u8);
     }
     prepension.append(&mut append_bytes);
@@ -41,6 +44,8 @@ pub fn prepend_header(mut append_bytes: Vec<u8>) -> Vec<u8> {
 pub enum Token {
     Op { code: Opcode },
     Register { reg_num: u8 },
+    Factor { value: Box<Token> },
+    Float { value: f64 },
     IntegerOperand { value: i32 },
     LabelDeclaration { name: String },
     LabelUsage { name: String },

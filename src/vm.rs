@@ -1,4 +1,4 @@
-use std::io::Cursor;
+use std::{f64::EPSILON, io::Cursor};
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use chrono::{DateTime, Utc};
@@ -12,6 +12,8 @@ pub fn get_test_vm() -> VM {
     test_vm.equal_flag = false;
     test_vm.registers[0] = 5;
     test_vm.registers[1] = 10;
+    test_vm.float_registers[0] = 5.0;
+    test_vm.float_registers[1] = 10.0;
     test_vm
 }
 
@@ -33,30 +35,33 @@ pub struct VMEvent {
 pub struct VM {
     // Simulate hard registers
     pub registers: [i32; 32], // Why we use array instead of vector? Because we know the size of registers at the start.
-    // tracking the program counter
-    pc: usize, // program counter, 8 bits
+    /// Array that simulates having floating point hardware registers
+    pub float_registers: [f64; 32],
     // Running program bytes
     pub program: Vec<u8>, // program memory, 8 bits
+    /// Number of logical cores the system reports
+    pub logical_cores: usize,
+    // tracking the program counter
+    pc: usize, // program counter, 8 bits
     // the heap memory
     heap: Vec<u8>, // heap memory, 8 bits
     // The reminder of division operation
-    reminder: u32,
+    reminder: usize,
     // the last compare result
     equal_flag: bool,
     /// Contains the read-only section data
     ro_data: Vec<u8>,
     /// 用于标识这个虚拟机的唯一随机生成的 UUID
     id: Uuid,
-
+    /// Keeps a list of events for a particular VM
     events: Vec<VMEvent>,
-
-    pub logical_cores: usize,
 }
 
 impl VM {
     pub fn new() -> VM {
         VM {
             registers: [0; 32],
+            float_registers: [0.0; 32],
             program: vec![],
             ro_data: vec![],
             heap: vec![],
@@ -86,7 +91,7 @@ impl VM {
             return self.events.clone();
         }
         // If the header is valid, we need to change the PC to be at bit 65.
-        self.pc = 64 + self.get_starting_offset();
+        self.pc = 64 + 4 + self.get_starting_offset();
 
         let mut is_done = None;
         while is_done.is_none() {
@@ -151,7 +156,7 @@ impl VM {
                 let register1 = self.registers[self.next_8_bits() as usize];
                 let register2 = self.registers[self.next_8_bits() as usize];
                 self.registers[self.next_8_bits() as usize] = register1 / register2;
-                self.reminder = (register1 % register2) as u32;
+                self.reminder = (register1 % register2) as usize;
             },
             Opcode::HLT => {
                 info!("Hit the HLT");
@@ -248,6 +253,89 @@ impl VM {
                     },
                 }
             },
+            Opcode::LOADF64 => {
+                let register = self.next_8_bits() as usize;
+                let num = f64::from(self.next_16_bits());
+                self.float_registers[register] = num;
+            },
+            Opcode::ADDF64 => {
+                let register1 = self.float_registers[self.next_8_bits() as usize];
+                let register2 = self.float_registers[self.next_8_bits() as usize];
+                self.float_registers[self.next_8_bits() as usize] = register1 + register2;
+            },
+            Opcode::SUBF64 => {
+                let register1 = self.float_registers[self.next_8_bits() as usize];
+                let register2 = self.float_registers[self.next_8_bits() as usize];
+                self.float_registers[self.next_8_bits() as usize] = register1 - register2;
+            },
+            Opcode::MULF64 => {
+                let register1 = self.float_registers[self.next_8_bits() as usize];
+                let register2 = self.float_registers[self.next_8_bits() as usize];
+                self.float_registers[self.next_8_bits() as usize] = register1 * register2;
+            },
+            Opcode::DIVF64 => {
+                let register1 = self.float_registers[self.next_8_bits() as usize];
+                let register2 = self.float_registers[self.next_8_bits() as usize];
+                self.float_registers[self.next_8_bits() as usize] = register1 / register2;
+                self.reminder = (register1 % register2) as usize;
+            },
+            Opcode::EQF64 => {
+                let register1 = self.float_registers[self.next_8_bits() as usize];
+                let register2 = self.float_registers[self.next_8_bits() as usize];
+                self.equal_flag = (register1 - register2).abs() < EPSILON;
+                self.next_8_bits();
+            },
+            Opcode::NEQF64 => {
+                let register1 = self.float_registers[self.next_8_bits() as usize];
+                let register2 = self.float_registers[self.next_8_bits() as usize];
+                self.equal_flag = !((register1 - register2).abs() < EPSILON);
+                self.next_8_bits();
+            },
+            Opcode::GTF64 => {
+                let register1 = self.float_registers[self.next_8_bits() as usize];
+                let register2 = self.float_registers[self.next_8_bits() as usize];
+                self.equal_flag = (register1 - register2).abs() > EPSILON && register1 > register2;
+                self.next_8_bits();
+            },
+            Opcode::GTEF64 => {
+                let register1 = self.float_registers[self.next_8_bits() as usize];
+                let register2 = self.float_registers[self.next_8_bits() as usize];
+                self.equal_flag =
+                    (register1 - register2).abs() >= EPSILON && register1 >= register2;
+                self.next_8_bits();
+            },
+            Opcode::LTF64 => {
+                let register1 = self.float_registers[self.next_8_bits() as usize];
+                let register2 = self.float_registers[self.next_8_bits() as usize];
+                self.equal_flag = (register1 - register2).abs() > EPSILON && register1 < register2;
+                self.next_8_bits();
+            },
+            Opcode::LTEF64 => {
+                let register1 = self.float_registers[self.next_8_bits() as usize];
+                let register2 = self.float_registers[self.next_8_bits() as usize];
+                self.equal_flag =
+                    (register1 - register2).abs() >= EPSILON && register1 <= register2;
+                self.next_8_bits();
+            },
+            Opcode::SHL => {
+                let reg_num = self.next_8_bits() as usize; // Gets the register the user wants to shift
+                                                           // Gets the next 8 bits, which is how many bits they want to shift
+                let num_bits = match self.next_8_bits() {
+                    0 => 16,        // If it is 0, it defaults to 16 bits
+                    other => other, // If it is some other number, it shifts that amount
+                };
+                self.registers[reg_num] = self.registers[reg_num].wrapping_shl(num_bits.into());
+            },
+            Opcode::SHR => {
+                let reg_num = self.next_8_bits() as usize; // Gets the register the user wants to shift
+                                                           // Gets the next 8 bits, which is how many bits they want to shift
+                let num_bits = match self.next_8_bits() {
+                    0 => 16,        // If it is 0, it defaults to 16 bits
+                    other => other, // If it is some other number, it shifts that amount
+                };
+                self.registers[reg_num] = self.registers[reg_num].wrapping_shr(num_bits.into());
+            },
+            Opcode::AND => {},
             _ => {
                 println!(
                     "Unknown opcode:{:?} has not been impl;",
@@ -260,7 +348,7 @@ impl VM {
 
     fn get_starting_offset(&self) -> usize {
         // We only want to read the slice containing the 4 bytes right after the magic number
-        let mut rdr = Cursor::new(&self.program[4..8]);
+        let mut rdr = Cursor::new(&self.program[64..68]);
         // Read it as a u32, cast as a usize (since the VM's PC attribute is a usize), and return it
         rdr.read_u32::<LittleEndian>().unwrap() as usize
     }
@@ -325,7 +413,8 @@ mod tests {
         let mut test_vm = VM::new();
         test_vm.program = vec![0, 0, 1, 244]; // Remember, this is how we represent 500 using two u8 in little endian format
                                               // [0, 0, 1, 244] => next_16_bits() return the 0x100_000_000 + 244 = 256 + 244 = 500
-        test_vm.run_once();
+        test_vm.program = prepend_header(test_vm.program);
+        test_vm.run();
         assert_eq!(test_vm.registers[0], 500);
     }
 
@@ -522,5 +611,14 @@ mod tests {
         test_vm.program = vec![21, 0, 0, 0];
         test_vm.run_once();
         // TODO: How can we validate the output since it is just printing to stdout in a test?
+    }
+
+    #[test]
+    fn test_shl_opcode() {
+        let mut test_vm = get_test_vm();
+        test_vm.program = vec![33, 0, 0, 0];
+        assert_eq!(5, test_vm.registers[0]);
+        test_vm.run_once();
+        assert_eq!(327680, test_vm.registers[0]);
     }
 }
