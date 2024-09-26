@@ -66,11 +66,6 @@ impl Client {
             }
         }
     }
-
-    fn write_prompt(&mut self) {
-        self.w(repl::PROMPT);
-    }
-
     fn w(&mut self, msg: &str) -> bool {
         match self.writer.write_all(msg.as_bytes()) {
             Ok(_) => match self.writer.flush() {
