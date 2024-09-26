@@ -4,11 +4,14 @@ use command_parser::CommandParser;
 
 use crate::assembler::program_parser::program;
 use crate::assembler::Assembler;
+use crate::cluster;
 use crate::scheduler::Scheduler;
+use crate::util::display;
 use crate::vm::VM;
 
 use std::io::Write;
 use std::io::{self};
+use std::net::TcpStream;
 use std::num::ParseIntError;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::{self, vec};
@@ -77,11 +80,11 @@ pub struct REPL {
 
 impl REPL {
     /// Creates and returns a new assembly repl
-    pub fn new() -> REPL {
+    pub fn new(vm: VM) -> REPL {
         let (tx, rx): (Sender<String>, Receiver<String>) = mpsc::channel();
         REPL {
             command_manager: CommandManager::new(),
-            vm: VM::new(),
+            vm,
             asm: Assembler::new(),
             scheduler: Scheduler::new(),
             tx_pipe: { Some(Box::new(tx)) },
@@ -211,6 +214,9 @@ impl REPL {
             "!clear" => self.clear(&args[1..]),
             "!registers" => self.registers(&args[1..]),
             "!symbols" => self.symbols(&args[1..]),
+            "!start_cluster" => self.start_cluster(&args[1..]),
+            "!join_cluster" => self.join_cluster(&args[1..]),
+            "!cluster_members" => self.cluster_members(&args[1..]),
             "!load_file" => {
                 let contents;
 
@@ -367,6 +373,47 @@ impl REPL {
                 },
             }
         }
+    }
+
+    fn start_cluster(&mut self, _args: &[&str]) {
+        display::writeout("Starting cluster server!");
+        self.vm.bind_cluster_server()
+    }
+
+    fn join_cluster(&mut self, args: &[&str]) {
+        display::writeout("Attempting to join cluster...");
+
+        // Extract the IP and Port arguments passed in
+        // TODO: make the process more safer
+        let ip = args[0];
+        let port = args[1];
+
+        let addr = ip.to_owned() + ":" + port;
+        if let Ok(stream) = TcpStream::connect(addr) {
+            self.send_message("Connected to cluster!");
+            // Adds the remote cluster to our list of connected clustrers
+            let mut cc =
+                cluster::client::ClusterClient::new(stream).with_alias(self.vm.id.to_string());
+            cc.send_hello();
+            if let Some(ref a) = self.vm.alias {
+                if let Ok(mut lock) = self.vm.connection_manager.write() {
+                    lock.add_client(a.to_string(), cc);
+                }
+            }
+        } else {
+            self.send_message("Could not connect to cluster!");
+        }
+    }
+
+    fn cluster_members(&mut self, _args: &[&str]) {
+        self.send_message("Listing Known Nodes:");
+        let cluster_members = self
+            .vm
+            .connection_manager
+            .read()
+            .unwrap()
+            .get_client_names();
+        self.send_message(&format!("{:#?}", cluster_members));
     }
 
     fn require_file_to_load(&mut self) -> Option<String> {
@@ -582,7 +629,7 @@ mod tests {
             Err(err) => panic!("Unable to read file:{}", err),
         };
 
-        let mut repl = REPL::new();
+        let mut repl = REPL::new(VM::new());
         repl.load_file(&[""], &contents);
         assert!(repl.asm.errors.is_empty());
 
@@ -601,7 +648,7 @@ mod tests {
             Err(err) => panic!("Unable to read file:{}", err),
         };
 
-        let mut repl = REPL::new();
+        let mut repl = REPL::new(VM::new());
         repl.spawn(&[""], &contents);
         assert!(repl.asm.errors.is_empty());
 

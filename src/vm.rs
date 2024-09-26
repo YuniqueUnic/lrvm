@@ -1,23 +1,24 @@
-use std::{f64::EPSILON, io::Cursor};
+use std::{
+    f64::EPSILON,
+    io::Cursor,
+    net::SocketAddr,
+    sync::{Arc, RwLock},
+    thread,
+};
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use chrono::{DateTime, Utc};
 use log::{debug, error, info};
 use uuid::Uuid;
 
-use crate::{assembler::PIE_HEADER_PREFIX, instruction::Opcode};
+use crate::{
+    assembler::PIE_HEADER_PREFIX,
+    cluster::{self, manager::Manager},
+    instruction::Opcode,
+    util::display,
+};
 
-pub fn e_writeout(msg: &str) {
-    let msg = format!("[Error]: {}", msg);
-    error!("{}", msg);
-    eprintln!("{}", msg);
-}
-
-pub fn writeout(msg: &str) {
-    let msg = format!("[ Info]: {}", msg);
-    info!("{}", msg);
-    println!("{}", msg);
-}
+pub const DEFAULT_HEAP_STARTING_SIZE: usize = 64;
 
 pub fn get_test_vm() -> VM {
     let mut test_vm = VM::new();
@@ -53,20 +54,32 @@ pub struct VM {
     pub program: Vec<u8>, // program memory, 8 bits
     /// Number of logical cores the system reports
     pub logical_cores: usize,
+    /// An alias that can be specified by the user and used to refer to the Node
+    pub alias: Option<String>,
+    /// Data structure to manage remote clients
+    pub connection_manager: Arc<RwLock<Manager>>,
     // tracking the program counter
     pc: usize, // program counter, 8 bits
     // the heap memory
     heap: Vec<u8>, // heap memory, 8 bits
+    /// Used to represent the stack
+    stack: Vec<u8>,
     // The reminder of division operation
     reminder: usize,
     // the last compare result
     equal_flag: bool,
+    /// Loop counter field, used with the `LOOP` instruction
+    loop_counter: usize,
     /// Contains the read-only section data
     ro_data: Vec<u8>,
     /// 用于标识这个虚拟机的唯一随机生成的 UUID
-    id: Uuid,
+    pub id: Uuid,
     /// Keeps a list of events for a particular VM
     events: Vec<VMEvent>,
+    /// Server address that the VM will bind to for server-to-server communications
+    server_addr: Option<String>,
+    /// Port the server will bind to for server-to-server communications
+    pub server_port: Option<String>,
 }
 
 impl VM {
@@ -76,13 +89,19 @@ impl VM {
             float_registers: [0.0; 32],
             program: vec![],
             ro_data: vec![],
-            heap: vec![],
+            heap: vec![0; DEFAULT_HEAP_STARTING_SIZE],
+            stack: vec![],
+            connection_manager: Arc::new(RwLock::new(Manager::new())),
             pc: 0,
+            loop_counter: 0,
             reminder: 0,
             equal_flag: false,
             id: Uuid::new_v4(),
-            events: vec![],
+            alias: None,
+            events: Vec::new(),
             logical_cores: num_cpus::get(),
+            server_addr: None,
+            server_port: None,
         }
     }
 
@@ -99,7 +118,7 @@ impl VM {
                 at: Utc::now(),
                 application_id: self.id.clone(),
             });
-            writeout("Header was incorrect");
+            display::writeout("Header was incorrect");
             return self.events.clone();
         }
         // If the header is valid, we need to change the PC to be at bit 65.
@@ -175,7 +194,7 @@ impl VM {
                 return Some(0);
             },
             Opcode::IGL => {
-                e_writeout("Illegal instruction encountered");
+                display::e_writeout("Illegal instruction encountered");
                 return Some(1);
             },
             Opcode::JMP => {
@@ -348,7 +367,7 @@ impl VM {
                 self.registers[reg_num] = self.registers[reg_num].wrapping_shr(num_bits.into());
             },
             Opcode::AND => {},
-            _ => e_writeout(&format!(
+            _ => display::e_writeout(&format!(
                 "Unknown opcode:{:?} has not been impl;",
                 self.decode_opcode()
             )),
@@ -363,6 +382,21 @@ impl VM {
         rdr.read_u32::<LittleEndian>().unwrap() as usize
     }
 
+    pub fn with_alias(mut self, alias: String) -> Self {
+        if alias.is_empty() {
+            self.alias = None;
+        } else {
+            self.alias = Some(alias);
+        }
+        self
+    }
+
+    pub fn with_cluster_bind(mut self, server_addr: String, server_port: String) -> Self {
+        display::writeout(&format!("Binding VM to {}:{}", server_addr, server_port));
+        self.server_addr = Some(server_addr);
+        self.server_port = Some(server_port);
+        self
+    }
     fn decode_opcode(&mut self) -> Opcode {
         let opcode = Opcode::from(self.program[self.pc]);
         self.pc += 1;
@@ -382,6 +416,31 @@ impl VM {
         self.pc += 2;
         result
     }
+
+    pub fn bind_cluster_server(&mut self) {
+        if let Some(ref addr) = self.server_addr {
+            if let Some(ref port) = self.server_port {
+                display::writeout(&format!("Binding to: {} {}", addr, port));
+                let socket_addr: SocketAddr = (addr.to_string() + ":" + port).parse().unwrap();
+                display::writeout(&format!("SocketAddr is: {:?}", socket_addr));
+
+                let clone_manager = self.connection_manager.clone();
+                thread::spawn(move || {
+                    cluster::server::listen(socket_addr, clone_manager);
+                });
+            } else {
+                display::e_writeout(&format!(
+                    "Unable to bind to cluster server address: {}",
+                    addr
+                ));
+            }
+        } else {
+            display::e_writeout(&format!(
+                "Unable to bind to cluster server port: {:?}",
+                self.server_port
+            ));
+        }
+    }
 }
 
 /// The Tests
@@ -391,7 +450,10 @@ mod tests {
 
     use log::debug;
 
-    use crate::{assembler::prepend_header, vm::get_test_vm};
+    use crate::{
+        assembler::prepend_header,
+        vm::{get_test_vm, DEFAULT_HEAP_STARTING_SIZE},
+    };
 
     use super::VM;
 
@@ -611,7 +673,8 @@ mod tests {
         test_vm.registers[0] = 1024;
         test_vm.program = vec![17, 0, 0, 0];
         test_vm.run_once();
-        assert_eq!(test_vm.heap.len(), 1024);
+        assert_eq!(test_vm.heap.len(), 1024 + DEFAULT_HEAP_STARTING_SIZE);
+        // the end size of heap should be the default starting size + new allocated size
     }
 
     #[test]

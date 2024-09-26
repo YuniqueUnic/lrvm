@@ -1,8 +1,9 @@
-use std::io::{BufRead, BufWriter, Read, Write};
+use std::io::{BufRead, BufWriter, Write};
 use std::thread;
 use std::{io::BufReader, net::TcpStream};
 
-use crate::repl::{self, REPL};
+use crate::repl::{self};
+use crate::vm::VM;
 
 pub struct Client {
     reader: BufReader<TcpStream>,
@@ -15,7 +16,7 @@ impl Client {
     pub fn new(raw_stream: TcpStream) -> Self {
         let reader = raw_stream.try_clone().unwrap();
         let writer = raw_stream.try_clone().unwrap();
-        let mut repl = repl::REPL::new();
+        let repl = repl::REPL::new(VM::new());
 
         Client {
             reader: { BufReader::new(reader) },

@@ -1,9 +1,11 @@
 pub mod assembler;
 pub mod cli;
+pub mod cluster;
 pub mod instruction;
 pub mod remote;
 pub mod repl;
 pub mod scheduler;
+pub mod util;
 pub mod vm;
 
 extern crate byteorder;

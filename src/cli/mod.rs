@@ -8,6 +8,14 @@ pub struct CLI {
     #[arg(short('f'), long)]
     pub file: Option<String>,
 
+    /// Root directory where the lrvm VM should store its data. Defaults to /var/lib/lrvm.
+    #[arg(long)]
+    pub data_root_dir: Option<String>,
+
+    /// An alias that can be used to refer to a running VM across a network
+    #[arg(short('n'), long)]
+    pub alias: Option<String>,
+
     /// Number of OS threads the VM will utilize
     #[arg(short('t'), long)]
     pub threads: Option<usize>,
@@ -20,9 +28,17 @@ pub struct CLI {
     #[arg(short('o'), long("bind-host"))]
     pub listen_host: Option<String>,
 
-    /// Which port lrvm should listen for remote connections on. Defaults to 2244.
+    /// Which port lrvm should listen for remote connections on. Defaults to 65201.
     #[arg(short('p'), long("bind-port"))]
     pub listen_port: Option<String>,
+
+    ///  Which address Iridium should listen for remote connections on from other Iridium VMs. Defaults to "127.0.0.1".
+    #[arg(short('O'), long("server-bind-host"))]
+    pub server_listen_host: Option<String>,
+
+    /// Which port Iridium should listen for remote connections on from other Iridium VMs. Defaults to 65211.
+    #[arg(short('P'), long("server-bind-port"))]
+    pub server_listen_port: Option<String>,
 
     /// test the cli args
     #[arg(long)]

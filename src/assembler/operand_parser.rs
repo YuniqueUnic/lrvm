@@ -1,5 +1,3 @@
-use core::num;
-
 use crate::assembler::Token;
 
 use nom::{
