@@ -24,21 +24,21 @@
 To start this project, make sure you have the latest version of Rust and the `cargo` tool installed. Here are the initial steps to create the project:
 
 ```sh
-cargo new rust_vm --bin
-cd rust_vm
-touch src/vm.rs
-
+cargo run # run the project
+cargo run -- -h # the cli commands of app
 ```
-在 `src/vm.rs` 中，我们将定义虚拟机的核心结构和功能。
+ [vm.rs](./src/vm.rs) 中为虚拟机的核心结构和功能。
 
-In `src/vm.rs`, we will define the core structure and functionality of the VM.
+The `src/vm.rs` is the core structure and functionality of the VM.
 
 ## 进度与计划 - Progress and Plans
-- [ ] 实现虚拟机的基本结构 - Implement the basic structure of the VM
+- [x] 实现虚拟机的基本结构 - Implement the basic structure of the VM
 - [ ] 定义汇编语言和指令集 - Define the assembly language and instruction set
-- [ ] 实现指令解码和执行 - Implement instruction decoding and execution
-- [ ] 添加测试用例 - Add test cases
-- [ ] 性能优化和集群支持 - Optimize performance and support clustering
+   - [x] 大部分支持：详情请查看：[instruction](./src/instruction.rs)
+   - [ ] 仍有些跳转逻辑等还未支持。
+- [x] 实现指令解码和执行 - Implement instruction decoding and execution
+- [x] 添加测试用例 - Add test cases
+- [x] 性能优化和集群支持 - Optimize performance and support clustering
 
 ## 贡献 - Contribution
 欢迎任何形式的贡献，包括代码提交、问题报告和功能建议。
