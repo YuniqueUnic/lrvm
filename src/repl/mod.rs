@@ -7,8 +7,8 @@ use crate::assembler::Assembler;
 use crate::scheduler::Scheduler;
 use crate::vm::VM;
 
-use std::io::{self, stdin};
-use std::io::{Stdin, Write};
+use std::io::Write;
+use std::io::{self};
 use std::num::ParseIntError;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::{self, vec};
@@ -51,8 +51,12 @@ impl CommandManager {
     }
 
     pub fn next_command(&mut self) -> String {
-        self.offset += 1;
-        self.currnet_command()
+        if self.offset == self.command_buffer.len() {
+            self.currnet_command()
+        } else {
+            self.offset += 1;
+            self.currnet_command()
+        }
     }
 
     pub fn clear_all(&mut self) {
@@ -284,7 +288,9 @@ impl REPL {
     fn clear(&mut self, args: &[&str]) {
         if args.len() <= 0 {
             self.send_message("[Error]: Unknown argument to clear: program/registers");
-            self.send_message("[Error]: For example: !clear program or !clear regiseters");
+            self.send_message(
+                "[Error]: For example: !clear program or !clear regiseters or !clear history",
+            );
             self.send_prompt();
             return;
         }

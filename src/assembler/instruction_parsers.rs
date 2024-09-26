@@ -33,13 +33,13 @@ impl AssemblerInstruction {
     ///     一个包含字节码的向量，表示该 CPU 指令
     pub fn to_bytes(&self, symbols: &SymbolTable) -> Vec<u8> {
         // 初始化存储字节码的向量
-        let mut results = vec![];
+        let mut results: Vec<u8> = vec![];
 
         // 根据操作码将其转换为字节码
         match self.opcode {
             Some(Token::Op { code }) => {
                 // 将操作码转换为 u8 类型并添加到结果向量中
-                results.push(code as u8);
+                results.push(code.into());
             },
             _ => {
                 // 如果操作码字段中没有操作码，打印信息并终止程序

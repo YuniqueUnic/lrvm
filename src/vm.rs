@@ -7,6 +7,18 @@ use uuid::Uuid;
 
 use crate::{assembler::PIE_HEADER_PREFIX, instruction::Opcode};
 
+pub fn e_writeout(msg: &str) {
+    let msg = format!("[Error]: {}", msg);
+    error!("{}", msg);
+    eprintln!("{}", msg);
+}
+
+pub fn writeout(msg: &str) {
+    let msg = format!("[ Info]: {}", msg);
+    info!("{}", msg);
+    println!("{}", msg);
+}
+
 pub fn get_test_vm() -> VM {
     let mut test_vm = VM::new();
     test_vm.equal_flag = false;
@@ -87,7 +99,7 @@ impl VM {
                 at: Utc::now(),
                 application_id: self.id.clone(),
             });
-            println!("Header was incorrect");
+            writeout("Header was incorrect");
             return self.events.clone();
         }
         // If the header is valid, we need to change the PC to be at bit 65.
@@ -163,7 +175,7 @@ impl VM {
                 return Some(0);
             },
             Opcode::IGL => {
-                error!("Illegal instruction encountered");
+                e_writeout("Illegal instruction encountered");
                 return Some(1);
             },
             Opcode::JMP => {
@@ -336,12 +348,10 @@ impl VM {
                 self.registers[reg_num] = self.registers[reg_num].wrapping_shr(num_bits.into());
             },
             Opcode::AND => {},
-            _ => {
-                println!(
-                    "Unknown opcode:{:?} has not been impl;",
-                    self.decode_opcode()
-                )
-            },
+            _ => e_writeout(&format!(
+                "Unknown opcode:{:?} has not been impl;",
+                self.decode_opcode()
+            )),
         }
         None
     }

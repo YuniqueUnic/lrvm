@@ -22,7 +22,7 @@ pub enum Opcode {
     INC,     // 18
     DEC,     // 19
     DJMPE,   // 20
-    IGL,     // _
+    IGL,     // 100
     PRTS,    // 21
     LOADF64, // 22
     ADDF64,  // 23
@@ -50,6 +50,62 @@ pub enum Opcode {
     POP,     // 45
     CALL,    // 46
     RET,     // 47
+}
+
+impl Into<u8> for Opcode {
+    fn into(self) -> u8 {
+        match self {
+            Opcode::LOAD => 0,
+            Opcode::ADD => 1,
+            Opcode::SUB => 2,
+            Opcode::MUL => 3,
+            Opcode::DIV => 4,
+            Opcode::HLT => 5,
+            Opcode::JMP => 6,
+            Opcode::JMPF => 7,
+            Opcode::JMPB => 8,
+            Opcode::EQ => 9,
+            Opcode::NEQ => 10,
+            Opcode::GTE => 11,
+            Opcode::LTE => 12,
+            Opcode::LT => 13,
+            Opcode::GT => 14,
+            Opcode::JMPE => 15,
+            Opcode::NOP => 16,
+            Opcode::ALOC => 17,
+            Opcode::INC => 18,
+            Opcode::DEC => 19,
+            Opcode::DJMPE => 20,
+            Opcode::PRTS => 21,
+            Opcode::LOADF64 => 22,
+            Opcode::ADDF64 => 23,
+            Opcode::SUBF64 => 24,
+            Opcode::MULF64 => 25,
+            Opcode::DIVF64 => 26,
+            Opcode::EQF64 => 27,
+            Opcode::NEQF64 => 28,
+            Opcode::GTF64 => 29,
+            Opcode::GTEF64 => 30,
+            Opcode::LTF64 => 31,
+            Opcode::LTEF64 => 32,
+            Opcode::SHL => 33,
+            Opcode::SHR => 34,
+            Opcode::AND => 35,
+            Opcode::OR => 36,
+            Opcode::XOR => 37,
+            Opcode::NOT => 38,
+            Opcode::LUI => 39,
+            Opcode::CLOOP => 40,
+            Opcode::LOOP => 41,
+            Opcode::LOADM => 42,
+            Opcode::SETM => 43,
+            Opcode::PUSH => 44,
+            Opcode::POP => 45,
+            Opcode::CALL => 46,
+            Opcode::RET => 47,
+            Opcode::IGL => 100,
+        }
+    }
 }
 
 impl From<u8> for Opcode {
